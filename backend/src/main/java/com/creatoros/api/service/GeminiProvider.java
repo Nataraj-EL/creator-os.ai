@@ -1,0 +1,374 @@
+package com.creatoros.api.service;
+
+import com.creatoros.api.config.AiRoutingConfig;
+import com.creatoros.api.dto.*;
+import com.creatoros.api.model.AiTaskType;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class GeminiProvider implements AiProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(GeminiProvider.class);
+    private final RestClient restClient;
+    private final ObjectMapper objectMapper;
+    private final AiRoutingConfig routingConfig;
+
+    public GeminiProvider(AiRoutingConfig routingConfig, ObjectMapper objectMapper) {
+        this.routingConfig = routingConfig;
+        this.objectMapper = objectMapper;
+
+        // Configure connection timeouts: 10s connect, 30s read
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(10000);
+        requestFactory.setReadTimeout(30000);
+
+        this.restClient = RestClient.builder()
+                .requestFactory(requestFactory)
+                .baseUrl("https://generativelanguage.googleapis.com")
+                .build();
+    }
+
+    @Override
+    public boolean supports(AiTaskType taskType) {
+        return taskType == AiTaskType.GROWTH_AUDIT 
+                || taskType == AiTaskType.CONTENT_GENERATION 
+                || taskType == AiTaskType.REEL_ANALYSIS
+                || taskType == AiTaskType.GROWTH_ADVISOR
+                || taskType == AiTaskType.BRAIN_ANALYSIS;
+    }
+
+    @Override
+    public String getName() {
+        return "gemini";
+    }
+
+    @Override
+    public <T, R> R execute(AiTaskType taskType, T input, Class<R> responseClass) {
+        String apiKey = routingConfig.getGeminiApiKey();
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw new IllegalStateException("Gemini API key is not configured.");
+        }
+
+        String prompt;
+        if (taskType == AiTaskType.CONTENT_GENERATION) {
+            ContentGenerationInput genInput = (ContentGenerationInput) input;
+            String personalContext = "";
+            if (genInput.getCreatorIdentity() != null && !genInput.getCreatorIdentity().trim().isEmpty()) {
+                personalContext = String.format(
+                        "\n--- PERSONALIZATION CONTEXT (CREATOR BRAIN TWIN) ---\n" +
+                        "Creator Identity: %s\n" +
+                        "Audience Profile: %s\n" +
+                        "Communication Style: %s\n" +
+                        "Writing Style: %s\n" +
+                        "Preferred CTA Style: %s\n" +
+                        "Creator DNA: %s\n" +
+                        "Signature Writing Examples:\n%s\n" +
+                        "--------------------------------------------------\n" +
+                        "CRITICAL: You MUST write the script hooks, body, and CTAs to strictly match this creator identity, communication style, writing style, DNA, and formatting parameters. Ensure the tone is cohesive with the signature content examples provided.\n",
+                        genInput.getCreatorIdentity(),
+                        genInput.getAudienceProfile(),
+                        genInput.getCommunicationStyle(),
+                        genInput.getWritingStyle(),
+                        genInput.getPreferredCTAStyle(),
+                        genInput.getCreatorDNA(),
+                        genInput.getContentExamples()
+                );
+            }
+            prompt = String.format(
+                    "You are an expert content strategist for creators. Generate a high-performing video content draft for:\n" +
+                    "Niche: %s\n" +
+                    "Brand Voice: %s\n" +
+                    "Primary Platform: %s\n" +
+                    "Topic: %s\n" +
+                    "Primary Goal: %s\n%s\n" +
+                    "The Primary Goal of the video must directly influence the hook, structure, CTAs, and overall content angle. For example:\n" +
+                    "- Reach: Use curiosity-driven hooks designed for viral potential.\n" +
+                    "- Engagement: Focus on initiating discussion or triggering comments.\n" +
+                    "- Lead Generation: Call out a specific pain point and suggest a lead magnet CTA.\n" +
+                    "- Sales: Handle objections and present a direct conversion CTA.\n" +
+                    "- Brand Awareness: Introduce core values, unique traits, and memorable branding.\n" +
+                    "- Community Building: Encourage collaboration, user-generated content, or direct audience call-outs.\n" +
+                    "- Authority Building: Use stats, credential-driven language, and actionable expertise.\n\n" +
+                    "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
+                    "{\n" +
+                    "  \"hooks\": [\"hook option 1\", \"hook option 2\", \"hook option 3\"],\n" +
+                    "  \"script\": \"Write a complete script divided into Part 1: Context Setup, Part 2: Core Strategy, and Part 3: The Iteration.\",\n" +
+                    "  \"ctas\": [\"CTA option 1\", \"CTA option 2\"]\n" +
+                    "}",
+                    genInput.getNiche(), genInput.getVoice(), genInput.getPlatform(), genInput.getTopic(),
+                    genInput.getPrimaryGoal() != null ? genInput.getPrimaryGoal() : "General Engagement",
+                    personalContext
+            );
+        } else if (taskType == AiTaskType.GROWTH_AUDIT) {
+            GrowthAuditInput auditInput = (GrowthAuditInput) input;
+            prompt = String.format(
+                    "You are an expert growth strategist for content creators. Conduct a thorough growth audit for the following creator profile and metrics:\n" +
+                    "Creator Name: %s\n" +
+                    "Niche: %s\n" +
+                    "Primary Platform: %s\n" +
+                    "Subscribers: %d\n" +
+                    "Views: %d\n" +
+                    "CTR: %.2f%%\n" +
+                    "Weekly Uploads: %d\n" +
+                    "Average View Duration (seconds): %d\n" +
+                    "Brand Voice: %s\n\n" +
+                    "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
+                    "{\n" +
+                    "  \"growthScore\": 82,\n" +
+                    "  \"contentScore\": 75,\n" +
+                    "  \"engagementScore\": 85,\n" +
+                    "  \"consistencyScore\": 90,\n" +
+                    "  \"audienceScore\": 78,\n" +
+                    "  \"summary\": \"Detailed narrative summary of performance...\",\n" +
+                    "  \"strengths\": [\"Strength 1\", \"Strength 2\"],\n" +
+                    "  \"weaknesses\": [\"Weakness 1\", \"Weakness 2\"],\n" +
+                    "  \"recommendations\": [\n" +
+                    "    {\n" +
+                    "      \"title\": \"Actionable recommendation 1\",\n" +
+                    "      \"description\": \"Detailed steps to execute...\",\n" +
+                    "      \"impact\": \"HIGH\",\n" +
+                    "      \"category\": \"CONTENT\"\n" +
+                    "    }\n" +
+                    "  ]\n" +
+                    "}",
+                    auditInput.getCreatorName(), auditInput.getNiche(), auditInput.getPlatform(),
+                    auditInput.getSubscribers(), auditInput.getViews(), auditInput.getCtr(),
+                    auditInput.getWeeklyUploads(), auditInput.getAvdSeconds(), auditInput.getBrandVoice()
+            );
+        } else if (taskType == AiTaskType.REEL_ANALYSIS) {
+            ReelAnalysisInput reelInput = (ReelAnalysisInput) input;
+            String instagramCaption = "";
+            if (reelInput.getCaption() != null && !reelInput.getCaption().trim().isEmpty()) {
+                instagramCaption = String.format("Instagram Post Caption: \"%s\"\n", reelInput.getCaption());
+            }
+            String personalContext = "";
+            if (reelInput.getCreatorIdentity() != null && !reelInput.getCreatorIdentity().trim().isEmpty()) {
+                personalContext = String.format(
+                        "\n--- CREATOR BRAIN TWIN DNA ---\n" +
+                        "Creator Identity: %s\n" +
+                        "Creator DNA: %s\n" +
+                        "------------------------------\n" +
+                        "CRITICAL: When analyzing visual frame elements, caption copy, and CTAs, you MUST explicitly evaluate them against the creator's target identity and DNA. Identify voice alignment strengths and key positioning mismatches in your diagnostic write-ups.\n",
+                        reelInput.getCreatorIdentity(), reelInput.getCreatorDNA()
+                );
+            }
+            prompt = String.format(
+                    "You are an expert reel and short-form video analyst. You are provided with representative video frames (attached as visual inputs) and the following metadata:\n" +
+                    "File Name: %s\n" +
+                    "File Size: %d bytes\n" +
+                    "Reel URL: %s\n" +
+                    "%s\n%s\n" +
+                    "Analyze the visual storytelling, editing pace, hooks, caption, and call-to-actions shown in these video frames and metadata.\n" +
+                    "Generate a comprehensive diagnostic reel analysis report incorporating all visual context.\n" +
+                    "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
+                    "{\n" +
+                    "  \"durationSeconds\": 30,\n" +
+                    "  \"hookScore\": 70,\n" +
+                    "  \"retentionScore\": 80,\n" +
+                    "  \"ctaScore\": 75,\n" +
+                    "  \"contentScore\": 85,\n" +
+                    "  \"overallScore\": 77,\n" +
+                    "  \"strengths\": [\"Strength 1\", \"Strength 2\"],\n" +
+                    "  \"weaknesses\": [\"Weakness 1\"],\n" +
+                    "  \"recommendations\": [\"Recommendation 1\", \"Recommendation 2\"],\n" +
+                    "  \"hookAnalysis\": \"Detailed analysis of the video hook, visual momentum, and immediate attention retention (first 3 seconds)\",\n" +
+                    "  \"captionAnalysis\": \"Detailed analysis of the post caption, readability, copywriting, and search indexability\",\n" +
+                    "  \"ctaAnalysis\": \"Analysis of the call to action, end-screen overlays, and conversion logic\",\n" +
+                    "  \"retentionPrediction\": \"Evaluation of the audience retention drops, pacing transitions, and watch time opportunities\",\n" +
+                    "  \"viralPotential\": \"Prediction of virality potential, estimated reach index, and key editing/visual optimizations\"\n" +
+                    "}",
+                    reelInput.getFileName() != null ? reelInput.getFileName() : "Instagram Reel",
+                    reelInput.getFileSize(),
+                    reelInput.getReelUrl() != null ? reelInput.getReelUrl() : "N/A",
+                    instagramCaption,
+                    personalContext
+            );
+        } else if (taskType == AiTaskType.GROWTH_ADVISOR) {
+            GrowthAdvisorInput advisorInput = (GrowthAdvisorInput) input;
+            ChannelMetadata meta = advisorInput.getMetadata();
+            String metaString = String.format(
+                    "Handle: %s\n" +
+                    "Title: %s\n" +
+                    "Description/Bio: %s\n" +
+                    "Subscribers/Followers: %s\n" +
+                    "Video Count: %s\n" +
+                    "Analysis Mode: %s\n",
+                    meta.getHandle(),
+                    meta.getTitle() != null ? meta.getTitle() : "N/A",
+                    meta.getDescription() != null ? meta.getDescription() : "N/A",
+                    meta.getPlatform().equalsIgnoreCase("youtube") 
+                        ? (meta.getSubscriberCount() != null ? String.valueOf(meta.getSubscriberCount()) : "N/A") 
+                        : (meta.getFollowers() != null ? String.valueOf(meta.getFollowers()) : "N/A"),
+                    meta.getVideoCount() != null ? String.valueOf(meta.getVideoCount()) : "N/A",
+                    meta.getAnalysisMode()
+            );
+
+            String nicheStr = (advisorInput.getNiche() != null && !advisorInput.getNiche().trim().isEmpty())
+                    ? String.format("Suggested Creator Niche: %s\n", advisorInput.getNiche())
+                    : "";
+
+            String instructions = "";
+            if ("PROFILE_ONLY".equals(meta.getAnalysisMode())) {
+                instructions = String.format(
+                        "CRITICAL: Since the analysisMode is PROFILE_ONLY, you MUST start your response's 'profileSummary' field EXACTLY with this sentence: " +
+                        "\"I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices.\" " +
+                        "After this sentence, you should proceed with analyzing the channel positioning and branding based on the available title, description, and niche.",
+                        meta.getPlatform().equalsIgnoreCase("youtube") ? "YouTube channel" : "Instagram"
+                );
+            } else {
+                instructions = "Analyze the channel positioning, strengths, weaknesses, opportunities, and content gaps using the provided public metadata.";
+            }
+
+            String personalContext = "";
+            if (advisorInput.getCreatorIdentity() != null && !advisorInput.getCreatorIdentity().trim().isEmpty()) {
+                personalContext = String.format(
+                        "\n--- CREATOR BRAIN TWIN GOALS & STRATEGY ---\n" +
+                        "Creator Identity: %s\n" +
+                        "Audience Profile: %s\n" +
+                        "Content Pillars: %s\n" +
+                        "Strategic Focus: %s\n" +
+                        "Long-Term Goals: %s\n" +
+                        "-------------------------------------------\n" +
+                        "CRITICAL: You MUST tailor all recommendations, strengths/weaknesses audits, audience opportunities, and the 30-day week-by-week roadmap to align with and accelerate these specific strategic goals, focus, and content pillars.\n",
+                        advisorInput.getCreatorIdentity(),
+                        advisorInput.getAudienceProfile(),
+                        advisorInput.getContentPillars(),
+                        advisorInput.getStrategicFocus(),
+                        advisorInput.getLongTermGoals()
+                );
+            }
+
+            prompt = String.format(
+                    "You are an expert creator growth advisor and channel strategist. Perform a detailed profile analysis for:\n" +
+                    "Platform: %s\n" +
+                    "Profile URL: %s\n" +
+                    "%s\n" +
+                    "Profile Metadata:\n" +
+                    "%s\n" +
+                    "%s\n%s\n\n" +
+                    "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
+                    "{\n" +
+                    "  \"profileSummary\": \"Positioning and niche analysis...\",\n" +
+                    "  \"strengths\": [\"Strength 1\", \"Strength 2\"],\n" +
+                    "  \"weaknesses\": [\"Weakness 1\", \"Weakness 2\"],\n" +
+                    "  \"opportunities\": [\"Audience opportunity 1\", \"Audience opportunity 2\"],\n" +
+                    "  \"contentGaps\": [\"Content gap 1\", \"Content gap 2\"],\n" +
+                    "  \"recommendations\": [\"Recommendation 1\", \"Recommendation 2\"],\n" +
+                    "  \"growthRoadmap\": \"Detailed 30-day week-by-week roadmap\"\n" +
+                    "}",
+                    meta.getPlatform(),
+                    advisorInput.getProfileUrl(),
+                    nicheStr,
+                    metaString,
+                    instructions,
+                    personalContext
+            );
+        } else if (taskType == AiTaskType.BRAIN_ANALYSIS) {
+            BrainAnalysisInput brainInput = (BrainAnalysisInput) input;
+            prompt = String.format(
+                    "You are an expert creator intelligence compiler. You are provided with the text corpus extracted from the creator's uploaded knowledge base documents:\n\n" +
+                    "--- BEGIN TEXT CORPUS ---\n" +
+                    "%s\n" +
+                    "--- END TEXT CORPUS ---\n\n" +
+                    "Analyze this text corpus and synthesize a structured creator intelligence profile that captures the creator's identity, mission, vision, audience, tone of voice, writing style, preferred call-to-actions, niche, content pillars, expertise areas, strategic goals, signature vocabulary / creator DNA, and signature content writing pattern examples.\n\n" +
+                    "Format your response strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
+                    "{\n" +
+                    "  \"creatorIdentity\": \"A summary of who the creator is, their niche, background, and positioning.\",\n" +
+                    "  \"creatorMission\": \"The underlying mission or purpose statement that drives their content.\",\n" +
+                    "  \"creatorVision\": \"The long-term vision or future target state they aim to establish.\",\n" +
+                    "  \"audienceProfile\": \"A description of the target audience, their demographics, pain points, and why they listen.\",\n" +
+                    "  \"communicationStyle\": \"A description of the communication tone, pacing, vocabulary, and delivery style (e.g. authoritative, empathetic, conversational).\",\n" +
+                    "  \"writingStyle\": \"Specific characteristics of how the creator writes (e.g. sentence structure, use of standard bullet formatting, technical density vs simplicity).\",\n" +
+                    "  \"contentStyle\": \"Format preferences, pacing guidelines, hooks, and structures preferred by the creator.\",\n" +
+                    "  \"preferredCTAStyle\": \"Persuasion tactics, types of calls-to-action (soft vs hard), and typical action prompts.\",\n" +
+                    "  \"niche\": \"The primary topic category or market segment (e.g. tech tutorials, startup finance, lifestyle marketing).\",\n" +
+                    "  \"strategicFocus\": \"The primary business focus and content strategies the creator is doubling down on.\",\n" +
+                    "  \"personalityTraits\": \"Key attributes describing the creator's public persona (e.g. rigorous, witty, direct).\",\n" +
+                    "  \"contentPillars\": \"The top 3-5 recurring themes/topics discussed in their content.\",\n" +
+                    "  \"expertiseAreas\": \"The core subjects of expertise demonstrated in the documents.\",\n" +
+                    "  \"longTermGoals\": \"The long-term goals and strategic milestones the creator wants to hit.\",\n" +
+                    "  \"creatorDNA\": \"Unique signature markers, preferred vocabulary words, rules they follow (e.g., standardizing lists, O(1) jokes).\",\n" +
+                    "  \"contentExamples\": \"Signature writing patterns, sentence starters, or typical text paragraph examples extracted from the corpus.\"\n" +
+                    "}",
+                    brainInput.getKnowledgeText()
+            );
+        } else {
+            throw new IllegalArgumentException("Task type " + taskType + " is not supported by GeminiProvider");
+        }
+
+        List<Map<String, Object>> partsList = new ArrayList<>();
+        partsList.add(Map.of("text", prompt));
+
+        if (taskType == AiTaskType.REEL_ANALYSIS) {
+            ReelAnalysisInput reelInput = (ReelAnalysisInput) input;
+            if (reelInput.getFramesBase64() != null) {
+                for (String base64Image : reelInput.getFramesBase64()) {
+                    if (base64Image != null && !base64Image.trim().isEmpty()) {
+                        partsList.add(Map.of(
+                                "inlineData", Map.of(
+                                        "mimeType", "image/png",
+                                        "data", base64Image
+                                )
+                        ));
+                    }
+                }
+            }
+        }
+
+        Map<String, Object> requestBody = Map.of(
+                "contents", List.of(
+                        Map.of("parts", partsList)
+                ),
+                "generationConfig", Map.of(
+                        "responseMimeType", "application/json"
+                )
+        );
+
+        try {
+            log.info("[AI] Executing GeminiProvider for {}", taskType);
+            String rawResponse = restClient.post()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/v1beta/models/gemini-2.5-flash:generateContent")
+                            .queryParam("key", apiKey)
+                            .build())
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
+
+            JsonNode rootNode = objectMapper.readTree(rawResponse);
+            String textResponse = rootNode
+                    .path("candidates").get(0)
+                    .path("content")
+                    .path("parts").get(0)
+                    .path("text").asText();
+
+            String jsonText = textResponse.trim();
+            if (jsonText.startsWith("```")) {
+                int firstLineEnd = jsonText.indexOf('\n');
+                if (firstLineEnd != -1) {
+                    jsonText = jsonText.substring(firstLineEnd + 1);
+                }
+                if (jsonText.endsWith("```")) {
+                    jsonText = jsonText.substring(0, jsonText.length() - 3);
+                }
+                jsonText = jsonText.trim();
+            }
+
+            return objectMapper.readValue(jsonText, responseClass);
+
+        } catch (Exception e) {
+            log.error("[AI] Gemini execution failed: {}", e.getMessage());
+            throw new RuntimeException("Gemini execution failed: " + e.getMessage(), e);
+        }
+    }
+}

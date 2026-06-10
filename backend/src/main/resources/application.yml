@@ -1,0 +1,64 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: creatoros-api
+  threads:
+    virtual:
+      enabled: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/creatoros}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+jwt:
+  # Secret key base64 encoded (256-bit min for HS256)
+  secret: ${JWT_SECRET:d291bGQgY2F0IG5ldyB5b3JrIGNpdHkgYnJvb2tseW4gYnJpZGdlIHNhZmUgY3J5cHRvIHNlY3JldCBrZXkgYmFzZTY0IGVuY29kZWQ=}
+  # 15 minutes for access token expiration (in milliseconds)
+  expiration: ${JWT_EXPIRATION:900000}
+  # 7 days for refresh token expiration (in milliseconds)
+  refreshExpiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+ai:
+  provider: ${AI_PROVIDER:gemini}
+  routing:
+    growth-audit: ${AI_ROUTING_GROWTH_AUDIT:gemini}
+    content-studio: ${AI_ROUTING_CONTENT_STUDIO:groq}
+    reel-analyzer: ${AI_ROUTING_REEL_ANALYZER:huggingface}
+    knowledge-brain: ${AI_ROUTING_KNOWLEDGE_BRAIN:cohere}
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY:}
+  api-key: ${GEMINI_API_KEY:}
+
+groq:
+  api-key: ${GROQ_API_KEY:}
+
+huggingface:
+  api-key: ${HF_API_KEY:}
+
+cohere:
+  api-key: ${COHERE_API_KEY:}
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY:}
+
+

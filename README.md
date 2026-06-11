@@ -1,4 +1,4 @@
-# CreatorOS AI — AI Operating System for Creators
+# CreatorOS AI - AI Operating System for Creators
 
 An integrated, enterprise-grade AI operating system built to streamline media production pipelines, automate growth analytics, optimize short-form video performance, and maintain creator style voice consistency.
 
@@ -49,21 +49,21 @@ By treating AI as an integrated collaborator rather than a simple chatbot, Creat
 
 ## 3. Feature Overview
 
-### 📝 Content Studio
+### Content Studio
 A professional scriptwriting canvas that translates content concepts into production-ready scripts:
 - **Goal-Driven Script Generation**: Draft scripts aligned with specific engagement objectives (educational, entertainment, sales conversion).
 - **Multiple Content Angles**: Output diverse angles for the same topic to test different audience segments.
 - **Scroll-Stopping Hooks**: Generate high-retention script intros based on viral hook templates.
 - **Camera & Pacing Cues**: Automatically format scene guides, camera pacing recommendations, and graphic overlays.
 
-### 📈 Growth Advisor
+### Growth Advisor
 An automated consultant that critiqes channel positioning using public profiles:
 - **URL Analysis**: Paste any public YouTube channel URL or Instagram profile URL (no authentication required).
 - **Positioning Critiques**: Analyze branding clarity, target audience alignment, and content formatting.
 - **30-Day Action Blueprints**: Generate a week-by-week growth strategy detailing content format priorities and CTR advice.
 - **Out-of-Sync Detection**: Detect if your profile needs a rebuild when documents are uploaded or deleted.
 
-### 🎥 Reel Analyzer
+### Reel Analyzer
 A short-form video optimization workbench to inspect clips before publishing:
 - **Video Upload Analysis**: Upload video files to analyze visual pace, intro hook contrast, and caption timing.
 - **Hook Evaluation**: Scores visual and audio momentum within the critical initial 3 seconds.
@@ -71,13 +71,13 @@ A short-form video optimization workbench to inspect clips before publishing:
 - **CTA Optimization**: Analyzes on-screen call-to-actions to maximize subscriber conversions.
 - **Viral Potential Scoring**: Computes a total score mapping current feed algorithm trends.
 
-### 🗄️ Knowledge Hub
+### Knowledge Hub
 A secure document vault to catalog the creator's raw research:
 - **Document Ingestion**: Upload research papers, transcripts, script archives, and brand style guides (PDF, TXT, DOCX formats).
 - **Semantic Text Extraction**: Extract clean content corpuses, tracking character counts and word distributions.
 - **Asynchronous Sync**: Upload and manage files in a clear status grid (Uploading, Processing, Ready).
 
-### 🧠 Creator Brain Twin
+### Creator Brain Twin
 The central intelligence engine that personalizes the entire operating system:
 - **Style Ingestion**: Analyze knowledge bases to extract communication tone, vocabulary, and preferred emojis.
 - **Identity Extraction**: Define the creator’s mission, vision, niche positioning, and audience targets.
@@ -173,19 +173,7 @@ creator-os/
 
 ---
 
-## 7. Product Screenshots
-
-| Interface | Preview Placeholder |
-|---|---|
-| **Landing Page** | ![Landing Page Preview](./public/vercel.svg) |
-| **Workspace Overview** | ![Dashboard Overview](./public/window.svg) |
-| **Content Studio** | ![Content Studio Drafts](./public/file.svg) |
-| **Growth Advisor** | ![Growth Advisor Audits](./public/globe.svg) |
-| **Knowledge Hub** | ![Knowledge Document Grid](./public/window.svg) |
-
----
-
-## 8. Local Development Setup
+## 7. Local Development Setup
 
 ### 1. Setup Backend (Spring Boot API)
 Ensure you have **Java JDK 21+** installed.
@@ -216,7 +204,7 @@ The client will launch at **`http://localhost:3000`**.
 
 ---
 
-## 9. Production Deployment Guide
+## 8. Production Deployment Guide
 
 ### Neon Database
 1. Create a PostgreSQL project on Neon.
@@ -244,7 +232,7 @@ The client will launch at **`http://localhost:3000`**.
 
 ---
 
-## 10. Current Status & Roadmap
+## 9. Current Status & Roadmap
 
 ### Active in Production Today
 * **Zero-Trust JWT Security**: Encrypted stateless cookies handling secure workspace auth.

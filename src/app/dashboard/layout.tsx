@@ -116,7 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
+    <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-300 overflow-hidden">
       
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 w-full glass-card border-b border-border px-4 h-16 flex items-center justify-between">
@@ -277,10 +277,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Main Core Layout Body */}
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 h-[calc(100vh-4rem)] overflow-hidden relative">
         
         {/* Desktop Sidebar (permanently visible on md+) */}
-        <aside className="hidden md:block w-64 border-r border-border bg-card/30 flex-shrink-0 p-4 space-y-6">
+        <aside className="hidden md:block w-64 border-r border-border bg-card/30 flex-shrink-0 p-4 space-y-6 overflow-y-auto">
           <div className="px-3">
             <span className="text-[10px] font-bold tracking-wider text-zinc-500 uppercase">CREATOR STUDIO</span>
           </div>

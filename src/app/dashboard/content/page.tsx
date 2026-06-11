@@ -38,6 +38,16 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
+const stripMarkdown = (text: string) => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^#+\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
+};
+
 const normalizeBullets = (text: string) => {
   if (!text) return '';
   return text
@@ -52,6 +62,25 @@ const normalizeBullets = (text: string) => {
       return line;
     })
     .join('\n');
+};
+
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, lineIdx) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    const parsedLine = parts.map((part, partIdx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={partIdx} className="font-extrabold text-white">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+    return (
+      <div key={lineIdx} className="min-h-[1.5rem]">
+        {parsedLine}
+      </div>
+    );
+  });
 };
 
 export default function ContentStudioPage() {
@@ -94,6 +123,29 @@ export default function ContentStudioPage() {
 
   // Title expanding textarea
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Export dropdown states
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setExportDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setExportDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     if (titleTextareaRef.current) {
@@ -442,23 +494,39 @@ export default function ContentStudioPage() {
       const title = editorTitle || 'Untitled Project';
       const dateStr = selectedProject ? new Date(selectedProject.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
       
-      // Page Setup
+      // Page Setup: Title Wrapping
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
-      doc.text(title, 20, 25);
       
+      const cleanTitle = stripMarkdown(title);
+      const splitTitle = doc.splitTextToSize(cleanTitle, 170);
+      let y = 25;
+      for (let line of splitTitle) {
+        doc.text(line, 20, y);
+        y += 10;
+      }
+      
+      // Metadata
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text(`Platform: ${primaryPlatform || 'YouTube / Instagram'}   |   Goal: ${editorPrimaryGoal || 'Reach'}   |   Generated: ${dateStr}`, 20, 33);
+      doc.text(`Platform: ${primaryPlatform || 'YouTube / Instagram'}   |   Goal: ${editorPrimaryGoal || 'Reach'}   |   Generated: ${dateStr}`, 20, y);
+      y += 5;
       
+      // Divider Line
       doc.setDrawColor(200);
       doc.setLineWidth(0.5);
-      doc.line(20, 38, 190, 38);
+      doc.line(20, y, 190, y);
+      y += 12;
       
-      let y = 48;
       const addSection = (header: string, content: string) => {
-        const contentNorm = normalizeBullets(content);
+        const contentNorm = stripMarkdown(normalizeBullets(content));
+        
+        // Page break check for Section Header
+        if (y > 265) {
+          doc.addPage();
+          y = 25;
+        }
         
         // Section Header
         doc.setFont('helvetica', 'bold');
@@ -488,17 +556,9 @@ export default function ContentStudioPage() {
         addSection('Hooks', editorHook);
       }
       if (editorScript) {
-        if (y > 250) {
-          doc.addPage();
-          y = 25;
-        }
         addSection('Script', editorScript);
       }
       if (editorCta) {
-        if (y > 250) {
-          doc.addPage();
-          y = 25;
-        }
         addSection('Call To Actions', editorCta);
       }
       
@@ -972,44 +1032,59 @@ export default function ContentStudioPage() {
                     </button>
 
                     {/* Export Dropdown in one line */}
-                    <div className="relative group">
+                    <div className="relative" ref={dropdownRef}>
                       <button
+                        onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
                         className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 rounded-xl transition-all cursor-pointer"
                       >
                         <FileDown className="h-3.5 w-3.5" />
                         <span>Export</span>
                         <ChevronDown className="h-3 w-3" />
                       </button>
-                      <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-[#111114] border border-white/5 p-1 shadow-2xl z-50 hidden group-hover:block hover:block">
-                        <button
-                          onClick={handleCopyToClipboard}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
-                        >
-                          <Copy className="h-3.5 w-3.5 text-zinc-500" />
-                          <span>Copy to Clipboard</span>
-                        </button>
-                        <button
-                          onClick={handleDownloadTxt}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
-                        >
-                          <FileText className="h-3.5 w-3.5 text-zinc-500" />
-                          <span>Download TXT</span>
-                        </button>
-                        <button
-                          onClick={handleDownloadMarkdown}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
-                        >
-                          <Wand2 className="h-3.5 w-3.5 text-zinc-500" />
-                          <span>Download Markdown</span>
-                        </button>
-                        <button
-                          onClick={handleDownloadPdf}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
-                        >
-                          <FileDown className="h-3.5 w-3.5 text-zinc-500" />
-                          <span>Export as PDF</span>
-                        </button>
-                      </div>
+                      {exportDropdownOpen && (
+                        <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-[#111114] border border-white/5 p-1 shadow-2xl z-50">
+                          <button
+                            onClick={() => {
+                              handleCopyToClipboard();
+                              setExportDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                          >
+                            <Copy className="h-3.5 w-3.5 text-zinc-500" />
+                            <span>Copy to Clipboard</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleDownloadTxt();
+                              setExportDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                            <span>Download TXT</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleDownloadMarkdown();
+                              setExportDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                          >
+                            <Wand2 className="h-3.5 w-3.5 text-zinc-500" />
+                            <span>Download Markdown</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleDownloadPdf();
+                              setExportDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                          >
+                            <FileDown className="h-3.5 w-3.5 text-zinc-500" />
+                            <span>Export as PDF</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -1176,24 +1251,24 @@ export default function ContentStudioPage() {
                     {/* HOOK Section */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider font-mono">Hooks</h3>
-                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-cyan-500 border border-white/5 text-sm leading-relaxed text-zinc-300 whitespace-pre-line">
-                        {normalizeBullets(editorHook) || <span className="italic text-zinc-600">No hook content generated.</span>}
+                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-cyan-500 border border-white/5 text-sm leading-relaxed text-zinc-300">
+                        {renderFormattedText(normalizeBullets(editorHook)) || <span className="italic text-zinc-600">No hook content generated.</span>}
                       </div>
                     </div>
 
                     {/* SCRIPT Section */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider font-mono">Script</h3>
-                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-indigo-500 border border-white/5 text-sm leading-relaxed text-zinc-300 whitespace-pre-line">
-                        {normalizeBullets(editorScript) || <span className="italic text-zinc-600">No script content generated.</span>}
+                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-indigo-500 border border-white/5 text-sm leading-relaxed text-zinc-300">
+                        {renderFormattedText(normalizeBullets(editorScript)) || <span className="italic text-zinc-600">No script content generated.</span>}
                       </div>
                     </div>
 
                     {/* CTA Section */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider font-mono">Call To Actions</h3>
-                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-purple-500 border border-white/5 text-sm leading-relaxed text-zinc-300 whitespace-pre-line">
-                        {normalizeBullets(editorCta) || <span className="italic text-zinc-600">No CTA content generated.</span>}
+                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-purple-500 border border-white/5 text-sm leading-relaxed text-zinc-300">
+                        {renderFormattedText(normalizeBullets(editorCta)) || <span className="italic text-zinc-600">No CTA content generated.</span>}
                       </div>
                     </div>
                   </div>

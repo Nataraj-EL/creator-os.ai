@@ -12,6 +12,48 @@ import {
 import { YoutubeIcon, InstagramIcon } from '../../../components/ui/BrandIcons';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const stripMarkdownText = (text: string) => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^#+\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
+};
+
+const parseWeeklyRoadmap = (roadmapText: string) => {
+  if (!roadmapText) return [];
+  const cleaned = roadmapText.replace(/\*\*/g, '').replace(/### /g, '').replace(/## /g, '').replace(/# /g, '');
+  const weeks = [];
+  const regex = /(Week\s+\d+[:\-]?)/gi;
+  const parts = cleaned.split(regex);
+  let currentWeekHeader = "";
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
+    if (!part) continue;
+    if (part.toLowerCase().startsWith("week") && part.match(/\d+/)) {
+      currentWeekHeader = part;
+    } else if (currentWeekHeader) {
+      weeks.push({
+        week: currentWeekHeader,
+        content: part.replace(/^[:\-]/, '').trim()
+      });
+    } else {
+      if (weeks.length === 0) {
+        weeks.push({
+          week: "Overview",
+          content: part
+        });
+      }
+    }
+  }
+  if (weeks.length === 0) {
+    return [{ week: "Roadmap Plan", content: cleaned }];
+  }
+  return weeks;
+};
+
 interface GrowthRecommendation {
   id: string;
   title: string;
@@ -336,7 +378,7 @@ export default function GrowthAdvisorPage() {
                     <span>Channel Positioning Critique</span>
                   </h3>
                   <p className="text-sm text-zinc-300 leading-relaxed font-normal">
-                    {selectedReport.report?.profileSummary}
+                    {stripMarkdownText(selectedReport.report?.profileSummary)}
                   </p>
                 </div>
 
@@ -351,7 +393,7 @@ export default function GrowthAdvisorPage() {
                       {selectedReport.report?.strengths?.map((str, idx) => (
                         <li key={idx} className="flex gap-2 items-start">
                           <span className="text-emerald-400 font-bold">✓</span>
-                          <span>{str}</span>
+                          <span>{stripMarkdownText(str)}</span>
                         </li>
                       ))}
                     </ul>
@@ -366,7 +408,7 @@ export default function GrowthAdvisorPage() {
                       {selectedReport.report?.weaknesses?.map((wk, idx) => (
                         <li key={idx} className="flex gap-2 items-start">
                           <span className="text-red-400 font-bold">•</span>
-                          <span>{wk}</span>
+                          <span>{stripMarkdownText(wk)}</span>
                         </li>
                       ))}
                     </ul>
@@ -384,7 +426,7 @@ export default function GrowthAdvisorPage() {
                       {selectedReport.report?.opportunities?.map((opp, idx) => (
                         <li key={idx} className="flex gap-2 items-start">
                           <span className="text-indigo-400 font-bold">▶</span>
-                          <span>{opp}</span>
+                          <span>{stripMarkdownText(opp)}</span>
                         </li>
                       ))}
                     </ul>
@@ -399,7 +441,7 @@ export default function GrowthAdvisorPage() {
                       {selectedReport.report?.contentGaps?.map((gap, idx) => (
                         <li key={idx} className="flex gap-2 items-start">
                           <span className="text-purple-400 font-bold">✦</span>
-                          <span>{gap}</span>
+                          <span>{stripMarkdownText(gap)}</span>
                         </li>
                       ))}
                     </ul>
@@ -415,7 +457,7 @@ export default function GrowthAdvisorPage() {
                         <div className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-400 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
                           {idx + 1}
                         </div>
-                        <p className="text-xs text-zinc-300 leading-relaxed">{rec}</p>
+                        <p className="text-xs text-zinc-300 leading-relaxed">{stripMarkdownText(rec)}</p>
                       </div>
                     ))}
                   </div>
@@ -427,8 +469,19 @@ export default function GrowthAdvisorPage() {
                     <Activity className="h-4.5 w-4.5 text-cyan-400" />
                     <span>30-Day Growth Roadmap</span>
                   </h3>
-                  <div className="text-xs text-zinc-400 whitespace-pre-line leading-relaxed font-mono p-4 rounded-xl bg-black/30 border border-white/5">
-                    {selectedReport.report?.growthRoadmap}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {parseWeeklyRoadmap(selectedReport.report?.growthRoadmap || '').map((item, idx) => (
+                      <div key={idx} className="p-5 rounded-xl bg-white/[0.01] border border-white/5 space-y-2 relative overflow-hidden group hover:border-cyan-500/20 transition-all duration-300">
+                        <div className="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-cyan-500 to-indigo-500" />
+                        <h4 className="text-xs font-black text-cyan-400 tracking-wider uppercase flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-indigo-400" />
+                          <span>{item.week}</span>
+                        </h4>
+                        <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line font-normal">
+                          {stripMarkdownText(item.content)}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

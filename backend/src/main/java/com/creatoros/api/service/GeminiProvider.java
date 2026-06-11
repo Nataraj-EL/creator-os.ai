@@ -256,16 +256,28 @@ public class GeminiProvider implements AiProvider {
                     "Profile Metadata:\n" +
                     "%s\n" +
                     "%s\n%s\n\n" +
-                    "CRITICAL: Ensure every strength, weakness, content gap, and roadmap milestone is highly personalized to this specific channel. Avoid generic growth tips (e.g. 'post consistently' or 'make good thumbnails'). If this is a famous creator, tailor it directly to their high-production/educational format, target audience, and business operations.\n\n" +
+                    "INSTRUCTIONS FOR PERSONALIZATION:\n" +
+                    "Your analysis and recommendations MUST be deeply customized and specific to this creator. You must explicitly analyze:\n" +
+                    "- Creator Niche: the exact sub-niche, topics, and level of technicality/entertainment.\n" +
+                    "- Content Format: the video length, style (talking head, documentary, sketch, high-production, etc.), and production quality.\n" +
+                    "- Audience Type: target demographic, intent (educational, casual entertainment, professional skill-building), and active community presence.\n" +
+                    "- Posting Strategy: cadence patterns, topic consistency vs variety.\n" +
+                    "- Monetization Style: sponsorships, product placements, digital products, coaching, merchandise, or passive AdSense.\n" +
+                    "- Positioning & Unique Angle: how they stand out from competitors.\n" +
+                    "- Competitive Advantages: what unique assets (studio gear, team, proprietary data, storytelling skill) they leverage.\n\n" +
+                    "CRITICAL QUALITY RULES:\n" +
+                    "1. AVOID GENERIC OBSERVATIONS or boilerplate growth tips (do NOT recommend generic advice like 'make clickable thumbnails', 'post consistently', 'use good lighting', or 'add captions'). Every point must be specific and actionable only for this particular creator's content.\n" +
+                    "2. If metadata or profile details are limited, do not make up fake metrics or invent facts. Instead, state your logical assumptions clearly in the summary (e.g., 'Assuming this channel primarily targets enterprise developers based on its title...').\n" +
+                    "3. If this is a famous creator (such as MrBeast, Ali Abdaal, Marques Brownlee / MKBHD, PewDiePie, etc.), leverage your pre-trained knowledge about their exact style, team size, content legacy, and business operations to provide a tailored, highly professional audit.\n\n" +
                     "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
                     "{\n" +
-                    "  \"profileSummary\": \"Positioning and niche analysis...\",\n" +
-                    "  \"strengths\": [\"Strength 1\", \"Strength 2\"],\n" +
-                    "  \"weaknesses\": [\"Weakness 1\", \"Weakness 2\"],\n" +
-                    "  \"opportunities\": [\"Audience opportunity 1\", \"Audience opportunity 2\"],\n" +
-                    "  \"contentGaps\": [\"Content gap 1\", \"Content gap 2\"],\n" +
-                    "  \"recommendations\": [\"Recommendation 1\", \"Recommendation 2\"],\n" +
-                    "  \"growthRoadmap\": \"Detailed 30-day week-by-week roadmap\"\n" +
+                    "  \"profileSummary\": \"Positioning, unique angle, and niche analysis (explicitly mentioning your assumptions if data is limited)...\",\n" +
+                    "  \"strengths\": [\"Specific Strength 1\", \"Specific Strength 2\"],\n" +
+                    "  \"weaknesses\": [\"Specific Weakness 1\", \"Specific Weakness 2\"],\n" +
+                    "  \"opportunities\": [\"Specific Audience/Business opportunity 1\", \"Specific Audience/Business opportunity 2\"],\n" +
+                    "  \"contentGaps\": [\"Specific Content gap 1\", \"Specific Content gap 2\"],\n" +
+                    "  \"recommendations\": [\"Specific Recommendation 1\", \"Specific Recommendation 2\"],\n" +
+                    "  \"growthRoadmap\": \"Detailed 30-day week-by-week roadmap tailored only to this creator's workflow and content themes\"\n" +
                     "}",
                     meta.getPlatform(),
                     advisorInput.getProfileUrl(),

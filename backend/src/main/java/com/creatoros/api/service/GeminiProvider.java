@@ -222,11 +222,11 @@ public class GeminiProvider implements AiProvider {
                 instructions = String.format(
                         "CRITICAL: Since the analysisMode is PROFILE_ONLY, you MUST start your response's 'profileSummary' field EXACTLY with this sentence: " +
                         "\"I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices.\" " +
-                        "After this sentence, you should proceed with analyzing the channel positioning and branding based on the available title, description, and niche.",
+                        "After this sentence, you MUST proceed with analyzing the channel positioning and branding. If the handle or title corresponds to a well-known creator (such as MrBeast, Ali Abdaal, Marques Brownlee / MKBHD, etc.), leverage your pre-trained knowledge about their specific content format, production style, target demographic, and growth stage to generate a highly tailored, custom strategy. Avoid generic, boilerplate advice at all costs.",
                         meta.getPlatform().equalsIgnoreCase("youtube") ? "YouTube channel" : "Instagram"
                 );
             } else {
-                instructions = "Analyze the channel positioning, strengths, weaknesses, opportunities, and content gaps using the provided public metadata.";
+                instructions = "Analyze the channel positioning, strengths, weaknesses, opportunities, and content gaps using the provided public metadata. If the creator is well-known, combine the public metadata with your pre-trained knowledge to deliver highly specific and custom growth recommendations.";
             }
 
             String personalContext = "";
@@ -256,6 +256,7 @@ public class GeminiProvider implements AiProvider {
                     "Profile Metadata:\n" +
                     "%s\n" +
                     "%s\n%s\n\n" +
+                    "CRITICAL: Ensure every strength, weakness, content gap, and roadmap milestone is highly personalized to this specific channel. Avoid generic growth tips (e.g. 'post consistently' or 'make good thumbnails'). If this is a famous creator, tailor it directly to their high-production/educational format, target audience, and business operations.\n\n" +
                     "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
                     "{\n" +
                     "  \"profileSummary\": \"Positioning and niche analysis...\",\n" +

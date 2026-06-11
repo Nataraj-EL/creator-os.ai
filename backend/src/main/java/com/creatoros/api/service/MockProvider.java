@@ -397,68 +397,251 @@ public class MockProvider implements AiProvider {
         log.info("[AI] Running Mock Provider for GROWTH_ADVISOR");
         ChannelMetadata meta = input.getMetadata();
         String platformName = meta.getPlatform().equalsIgnoreCase("youtube") ? "YouTube channel" : "Instagram";
+        String lowerHandle = meta.getHandle().toLowerCase();
         
         String summary;
-        if ("PROFILE_ONLY".equals(meta.getAnalysisMode())) {
-            summary = String.format(
-                    "I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices. " +
-                    "Analyzing %s (%s), the branding presence indicates an opportunity to carve a stronger conceptual footprint. Focusing on the suggested niche '%s' can unify content topics.",
-                    platformName, meta.getHandle(), platformName, input.getNiche() != null ? input.getNiche() : "General Creator"
+        List<String> strengths;
+        List<String> weaknesses;
+        List<String> opportunities;
+        List<String> contentGaps;
+        List<String> recommendations;
+        String roadmap;
+
+        if (lowerHandle.contains("mrbeast")) {
+            if ("PROFILE_ONLY".equals(meta.getAnalysisMode())) {
+                summary = String.format(
+                        "I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices. " +
+                        "Analyzing @mrbeast on %s, the profile shows a world-class viral entertainment positioning built around extreme challenges, massive philanthropy, and high-retention thumbnail/title hooks.",
+                        platformName, platformName
+                );
+            } else {
+                summary = String.format(
+                        "This is a comprehensive public channel report for @mrbeast on %s. The channel occupying the viral entertainment space has massive distribution metrics. With %s subscribers and %s videos indexed, the content positioning is optimized for mass retention.",
+                        platformName, meta.getSubscriberCount() != null ? meta.getSubscriberCount() : "N/A", meta.getVideoCount() != null ? meta.getVideoCount() : "N/A"
+                );
+            }
+
+            strengths = List.of(
+                    "World-class visual thumb-hook and title optimization driving massive CTR.",
+                    "High pacing frequency and immediate retention editing to maximize watch time.",
+                    "Unmatched scaling capabilities with global multi-language audio track localization."
             );
+
+            weaknesses = List.of(
+                    "Extreme viral pacing structure makes deep narrative connection or long-form storytelling difficult.",
+                    "High production cost structure is hard to duplicate for sub-channels or spin-off series.",
+                    "Underutilized direct monetization conversions to brand products beyond massive sponsors."
+            );
+
+            opportunities = List.of(
+                    "Leverage localized channel assets to cross-promote digital brand properties globally.",
+                    "Introduce a membership-only behind-the-scenes format to drive direct recurring user revenue.",
+                    "Collaborate with education/tech channels to cross-pollinate and diversify the viewer base."
+            );
+
+            contentGaps = List.of(
+                    "Documentary-style behind-the-scenes series detailing the complex engineering of main-channel sets.",
+                    "Interactive viewer polls and challenges directly integrated with backend digital web experiences.",
+                    "Objection-handling scripts explaining operational costs and philanthropic transparency."
+            );
+
+            recommendations = List.of(
+                    "Embed direct digital-product conversions in top-pinned comments on all localized channels.",
+                    "Introduce slower, conversational spin-off videos to build a stronger connection with core fans.",
+                    "Create customized community challenges that reward active digital community participation."
+            );
+
+            roadmap = 
+                    "Week 1: Pacing & Retention Audit\n" +
+                    "- Analyze first 3-second dropoff curves across recently launched main channel videos.\n" +
+                    "- Refine secondary channel thumbnail text layouts to optimize mobile click-through.\n\n" +
+                    "Week 2: Pinned Comment CTA Setup\n" +
+                    "- Implement high-converting digital sign-up links on top-pinned comments.\n" +
+                    "- Monitor click-through rates from Beast Philanthropy descriptions.\n\n" +
+                    "Week 3: Localized Audio Review\n" +
+                    "- Review localized translation script pacing for upcoming video drafts.\n" +
+                    "- Sync Portuguese and Spanish voiceover tracks with visual pacing.\n\n" +
+                    "Week 4: Documentary Series Prep\n" +
+                    "- Script a 3-part behind-the-scenes documentary series on set engineering.\n" +
+                    "- Test custom end-screen cards directing main channel traffic to the new series.";
+
+        } else if (lowerHandle.contains("aliabdaal") || lowerHandle.contains("abdaal")) {
+            if ("PROFILE_ONLY".equals(meta.getAnalysisMode())) {
+                summary = String.format(
+                        "I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices. " +
+                        "Analyzing @aliabdaal on %s, the channel brand is built around productivity, lifestyle design, and evidence-based self-improvement with a warm, conversational persona.",
+                        platformName, platformName
+                );
+            } else {
+                summary = String.format(
+                        "This is a comprehensive public channel report for @aliabdaal on %s. The channel occupying the self-improvement/productivity space has a highly engaged catalog. With %s subscribers and %s videos indexed, the content positioning is authoritative.",
+                        platformName, meta.getSubscriberCount() != null ? meta.getSubscriberCount() : "N/A", meta.getVideoCount() != null ? meta.getVideoCount() : "N/A"
+                );
+            }
+
+            strengths = List.of(
+                    "Warm, conversational, and highly trustworthy delivery style that builds instant rapport.",
+                    "Consistent aesthetic branding with premium typography and clean minimalist visuals.",
+                    "Deep catalog search optimization for long-tail productivity and study-tactic queries."
+            );
+
+            weaknesses = List.of(
+                    "Niche saturation and potential audience fatigue from repetitive time-management/study topics.",
+                    "Over-reliance on talking-head talking formats with insufficient dynamic b-roll pacing.",
+                    "Lack of clear branding differentiators in the crowded 'how to get rich' and productivity market."
+            );
+
+            opportunities = List.of(
+                    "Develop specialized premium cohort programs targeting mid-career corporate professionals.",
+                    "Host a serialized podcast focusing exclusively on creator business architectures and scaling.",
+                    "Create a structured newsletter summary series to drive active traffic off-platform."
+            );
+
+            contentGaps = List.of(
+                    "Detailed transparent breakdowns of the creator's backend business operations and costs.",
+                    "Productivity experiments showing real failures, raw struggles, and unedited schedules.",
+                    "Direct tactical tutorials on software tools, writing systems, and creator workflows."
+            );
+
+            recommendations = List.of(
+                    "Test a weekly 'Behind the Business' series with transparent revenue and team structure metrics.",
+                    "Integrate dynamic B-roll and screen recordings every 10-15 seconds to boost retention.",
+                    "Redesign description boxes to place the free weekly newsletter link above the fold."
+            );
+
+            roadmap = 
+                    "Week 1: Niche Transition Blueprint\n" +
+                    "- Draft three core pillars for the new 'Creator Economy Operations' content strategy.\n" +
+                    "- Audit past productivity playlist metrics to locate high-performing evergreen topics.\n\n" +
+                    "Week 2: Description Optimization\n" +
+                    "- Redesign description templates to highlight newsletter signups above the fold.\n" +
+                    "- Set up simple Google Analytics tracking for description links.\n\n" +
+                    "Week 3: Visual Pacing Upgrades\n" +
+                    "- Script the next two videos using multi-cam angles and interactive whiteboard sketches.\n" +
+                    "- Audit retention dropoffs during silent or slow transition periods.\n\n" +
+                    "Week 4: Community Tab Test\n" +
+                    "- Launch a structured community post campaign asking viewers about their business pain points.\n" +
+                    "- Launch pre-sell page for the upcoming Creator Operations cohort.";
+
+        } else if (lowerHandle.contains("mkbhd") || lowerHandle.contains("marques") || lowerHandle.contains("brownlee")) {
+            if ("PROFILE_ONLY".equals(meta.getAnalysisMode())) {
+                summary = String.format(
+                        "I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices. " +
+                        "Analyzing @mkbhd on %s, the profile shows an industry-standard consumer tech review positioning utilizing cinematic visuals and highly respected technical commentary.",
+                        platformName, platformName
+                );
+            } else {
+                summary = String.format(
+                        "This is a comprehensive public channel report for @mkbhd on %s. The channel occupying the consumer technology space has top-tier authority. With %s subscribers and %s videos, the content positioning is cinematic.",
+                        platformName, meta.getSubscriberCount() != null ? meta.getSubscriberCount() : "N/A", meta.getVideoCount() != null ? meta.getVideoCount() : "N/A"
+                );
+            }
+
+            strengths = List.of(
+                    "Cinematic RED-camera production value and flawless editing style.",
+                    "Deep trust and industry-recognized authority in consumer electronics reviews.",
+                    "Highly consistent branding, iconic minimalist studio backdrop, and professional pacing."
+            );
+
+            weaknesses = List.of(
+                    "Heavy content calendar dependency on external consumer hardware release schedules.",
+                    "Minimal off-platform direct digital monetization models beyond sponsorships and AdSense.",
+                    "Long production timelines making it difficult to react rapidly to trending breaking news."
+            );
+
+            opportunities = List.of(
+                    "Launch premium hardware-curated subscription boxes with direct brand collaborations.",
+                    "Create a software-focused review playlist targeting developer toolkits and AI models.",
+                    "Run live interactive tech QA streams with active audience polls."
+            );
+
+            contentGaps = List.of(
+                    "Explorations of the production stack, studio workflow, and camera rigs behind MKBHD.",
+                    "Software reviews detailing coding/development tools beyond consumer phone updates.",
+                    "Strategic analyses of future technology economics and hardware supply chain trends."
+            );
+
+            recommendations = List.of(
+                    "Diversify sponsorships to include developer-oriented SaaS and cloud platforms.",
+                    "Create a second-channel news program to cover tech breakthroughs in under 3 minutes.",
+                    "Integrate interactive product spec cards directly into description boxes."
+            );
+
+            roadmap = 
+                    "Week 1: Software Review Strategy\n" +
+                    "- Script a software-focused video analyzing AI developer APIs and local LLM performance.\n" +
+                    "- Review community comments to compile a list of requested hardware tools.\n\n" +
+                    "Week 2: Short-Form News Pilot\n" +
+                    "- Draft and shoot three tech news briefs on the Waveform channel.\n" +
+                    "- Analyze retention rates of tech briefs compared to full-length episodes.\n\n" +
+                    "Week 3: Behind the Camera Series\n" +
+                    "- Edit a studio walkthrough video showcasing camera workflow and edit templates.\n" +
+                    "- Embed affiliate links for all highlighted gear in the description.\n\n" +
+                    "Week 4: Tech Spec Cards Setup\n" +
+                    "- Design dynamic Tech Spec card templates for the description box of upcoming reviews.\n" +
+                    "- Measure CTR to sponsor links from optimized card positions.";
+
         } else {
-            summary = String.format(
-                    "This is a comprehensive public channel report for %s (%s). The channel '%s' occupying the '%s' space has healthy visibility. " +
-                    "With %s subscribers/followers and %s videos indexed, the content positioning is well-defined.",
-                    meta.getHandle(), platformName, meta.getTitle(), input.getNiche() != null ? input.getNiche() : "General Creator",
-                    platformName.equals("YouTube channel") ? meta.getSubscriberCount() : meta.getFollowers(),
-                    meta.getVideoCount() != null ? meta.getVideoCount() : "N/A"
+            if ("PROFILE_ONLY".equals(meta.getAnalysisMode())) {
+                summary = String.format(
+                        "I could identify this as a %s profile, but detailed analytics are unavailable from public sources. Recommendations are based on channel positioning, branding, content strategy, and niche best practices. " +
+                        "Analyzing %s (%s), the branding presence indicates an opportunity to carve a stronger conceptual footprint. Focusing on the suggested niche '%s' can unify content topics.",
+                        platformName, meta.getHandle(), platformName, input.getNiche() != null ? input.getNiche() : "General Creator"
+                );
+            } else {
+                summary = String.format(
+                        "This is a comprehensive public channel report for %s (%s). The channel '%s' occupying the '%s' space has healthy visibility. " +
+                        "With %s subscribers/followers and %s videos indexed, the content positioning is well-defined.",
+                        meta.getHandle(), platformName, meta.getTitle(), input.getNiche() != null ? input.getNiche() : "General Creator",
+                        platformName.equals("YouTube channel") ? meta.getSubscriberCount() : meta.getFollowers(),
+                        meta.getVideoCount() != null ? meta.getVideoCount() : "N/A"
+                );
+            }
+
+            strengths = List.of(
+                    "Consistent visual identity across profile elements.",
+                    "Strong positioning alignment in bio/description copy.",
+                    "High authority signals in core branding statement."
             );
+
+            weaknesses = List.of(
+                    "Lack of high-conversion lead generation pathways in link-in-bio.",
+                    "Inconsistent posting cadence causing search engine index volatility.",
+                    "Underutilized video description SEO optimization."
+            );
+
+            opportunities = List.of(
+                    "Expand short-form content distribution to capture top-of-funnel reach.",
+                    "Collaborate with niche peers to cross-pollinate creator audiences.",
+                    "Create a dedicated community newsletter to capture active subscribers."
+            );
+
+            contentGaps = List.of(
+                    "Objection-handling scripts addressing audience hesitations in details.",
+                    "Case-study teardowns detailing specific creator transformations.",
+                    "Behind-the-scenes editing workflow tutorials."
+            );
+
+            recommendations = List.of(
+                    "Audit link-in-bio structure and replace general links with a specific lead magnet callout.",
+                    "Optimise first two lines of video descriptions with keyword-rich positioning text.",
+                    "Establish a batch filming workflow to maintain a 2-week backlog of evergreen content."
+            );
+
+            roadmap = 
+                    "Week 1: Foundations & SEO Cleanup\n" +
+                    "- Update bio description to align exactly with target keywords.\n" +
+                    "- Restructure profile landing page link to point directly to a clean lead magnet page.\n\n" +
+                    "Week 2: Content Gap Execution\n" +
+                    "- Publish 2 case-study teardowns addressing primary viewer objections.\n" +
+                    "- Set up custom thumbnail text layouts to increase click-through metrics.\n\n" +
+                    "Week 3: Distribution & Batching\n" +
+                    "- Film 5 repurposed vertical shorts to capture top-of-funnel reach.\n" +
+                    "- Integrate dynamic CTA cues in the middle 30 seconds of videos.\n\n" +
+                    "Week 4: Review & Analytics Feedback\n" +
+                    "- Compare retention curves of recent uploads against historical averages.\n" +
+                    "- Iterate hook scripts based on early dropoff trends.";
         }
-
-        List<String> strengths = List.of(
-                "Consistent visual identity across profile elements.",
-                "Strong positioning alignment in bio/description copy.",
-                "High authority signals in core branding statement."
-        );
-
-        List<String> weaknesses = List.of(
-                "Lack of high-conversion lead generation pathways in link-in-bio.",
-                "Inconsistent posting cadence causing search engine index volatility.",
-                "Underutilized video description SEO optimization."
-        );
-
-        List<String> opportunities = List.of(
-                "Expand short-form content distribution to capture top-of-funnel reach.",
-                "Collaborate with niche peers to cross-pollinate creator audiences.",
-                "Create a dedicated community newsletter to capture active subscribers."
-        );
-
-        List<String> contentGaps = List.of(
-                "Objection-handling scripts addressing audience hesitations in details.",
-                "Case-study teardowns detailing specific creator transformations.",
-                "Behind-the-scenes editing workflow tutorials."
-        );
-
-        List<String> recommendations = List.of(
-                "Audit link-in-bio structure and replace general links with a specific lead magnet callout.",
-                "Optimise first two lines of video descriptions with keyword-rich positioning text.",
-                "Establish a batch filming workflow to maintain a 2-week backlog of evergreen content."
-        );
-
-        String roadmap = 
-                "### 30-Day Growth Roadmap\n\n" +
-                "**Week 1: Foundations & SEO Cleanup**\n" +
-                "- Update bio description to align exactly with target keywords.\n" +
-                "- Restructure profile landing page link to point directly to a clean lead magnet page.\n\n" +
-                "**Week 2: Content Gap Execution**\n" +
-                "- Publish 2 case-study teardowns addressing primary viewer objections.\n" +
-                "- Set up custom thumbnail text layouts to increase click-through metrics.\n\n" +
-                "**Week 3: Distribution & Batching**\n" +
-                "- Film 5 repurposed vertical shorts to capture top-of-funnel reach.\n" +
-                "- Integrate dynamic CTA cues in the middle 30 seconds of videos.\n\n" +
-                "**Week 4: Review & Analytics Feedback**\n" +
-                "- Compare retention curves of recent uploads against historical averages.\n" +
-                "- Iterate hook scripts based on early dropoff trends.";
 
         return GrowthAdvisorResult.builder()
                 .profileSummary(summary)

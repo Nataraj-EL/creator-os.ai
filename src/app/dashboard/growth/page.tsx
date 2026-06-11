@@ -24,23 +24,33 @@ const stripMarkdownText = (text: string) => {
 
 const parseWeeklyRoadmap = (roadmapText: string) => {
   if (!roadmapText) return [];
-  const cleaned = roadmapText.replace(/\*\*/g, '').replace(/### /g, '').replace(/## /g, '').replace(/# /g, '');
-  const weeks = [];
-  const regex = /(Week\s+\d+[:\-]?)/gi;
+  
+  // Clean markdown headers like ### or ##
+  const cleaned = roadmapText.replace(/###/g, '').replace(/##/g, '').replace(/#/g, '');
+  
+  // Regex to match "Week X", "Week X-Y", "Weeks X-Y", "Week X to Y", "Weeks X & Y", etc.
+  const regex = /(Weeks?\s+\d+(?:\s*(?:-|–|to|&)\s*\d+)?\s*:?)/gi;
+  
   const parts = cleaned.split(regex);
-  let currentWeekHeader = "";
+  const weeks = [];
+  
+  let currentHeader = "";
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i].trim();
     if (!part) continue;
-    if (part.toLowerCase().startsWith("week") && part.match(/\d+/)) {
-      currentWeekHeader = part;
-    } else if (currentWeekHeader) {
-      weeks.push({
-        week: currentWeekHeader,
-        content: part.replace(/^[:\-]/, '').trim()
-      });
+    
+    // Check if this part matches our week header pattern
+    if (part.match(/^Weeks?\s+\d+/i)) {
+      currentHeader = part.replace(/:$/, '').trim(); // Remove trailing colon
     } else {
-      if (weeks.length === 0) {
+      if (currentHeader) {
+        weeks.push({
+          week: currentHeader,
+          content: part.replace(/^[:\-–\s]+/, '').trim() // Clean leading punctuation
+        });
+        currentHeader = ""; // Reset for next
+      } else {
+        // If there's text before any header, add it as Overview
         weeks.push({
           week: "Overview",
           content: part
@@ -48,6 +58,8 @@ const parseWeeklyRoadmap = (roadmapText: string) => {
       }
     }
   }
+  
+  // Fallback: if no headers matched, just return the whole text as a single roadmap plan
   if (weeks.length === 0) {
     return [{ week: "Roadmap Plan", content: cleaned }];
   }
@@ -464,20 +476,38 @@ export default function GrowthAdvisorPage() {
                 </div>
 
                 {/* 30-Day week-by-week Growth Roadmap */}
-                <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-4">
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <Activity className="h-4.5 w-4.5 text-cyan-400" />
-                    <span>30-Day Growth Roadmap</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="glass-card rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-cyan-400 animate-pulse" />
+                      <span>30-Day Growth Roadmap</span>
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-bold uppercase tracking-wider">
+                      Structured Plan
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {parseWeeklyRoadmap(selectedReport.report?.growthRoadmap || '').map((item, idx) => (
-                      <div key={idx} className="p-5 rounded-xl bg-white/[0.01] border border-white/5 space-y-2 relative overflow-hidden group hover:border-cyan-500/20 transition-all duration-300">
-                        <div className="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-cyan-500 to-indigo-500" />
-                        <h4 className="text-xs font-black text-cyan-400 tracking-wider uppercase flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-indigo-400" />
-                          <span>{item.week}</span>
-                        </h4>
-                        <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line font-normal">
+                      <div 
+                        key={idx} 
+                        className="p-6 rounded-2xl bg-gradient-to-br from-white/[0.02] to-white/[0.04] border border-white/5 space-y-3 relative overflow-hidden group hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-300"
+                      >
+                        {/* Glow accent */}
+                        <div className="absolute -top-10 -right-10 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all duration-300" />
+                        
+                        <div className="absolute top-0 left-0 w-[4px] h-full bg-gradient-to-b from-cyan-500 to-indigo-500" />
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="px-3 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-black text-cyan-400 tracking-wider uppercase">
+                            {item.week}
+                          </span>
+                          <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 group-hover:text-cyan-400 group-hover:bg-cyan-500/10 transition-colors">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-zinc-300 leading-relaxed font-normal whitespace-pre-line">
                           {stripMarkdownText(item.content)}
                         </p>
                       </div>

@@ -92,11 +92,11 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 
-  /* Apply the subtle background box/grid design globally across all pages */
+  /* Apply the subtle background box/grid design globally across the entire website */
   background-image: 
-    linear-gradient(to right, rgba(38, 30, 26, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(38, 30, 26, 0.015) 1px, transparent 1px) !important;
-  background-size: 30px 30px !important;
+    linear-gradient(to right, rgba(38, 30, 26, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(38, 30, 26, 0.025) 1px, transparent 1px) !important;
+  background-size: 40px 40px !important;
 }
 
 /* Custom Scrollbar */
@@ -211,7 +211,7 @@ select option {
 /* Hardcoded Layout & Text Color Overrides for Natural Theme Integration */
 [class*="bg-[#030303]"],
 .bg-\[\#030303\] {
-  background-color: var(--background) !important;
+  background-color: transparent !important; /* Allow body grid background to show through seamlessly */
 }
 
 [class*="bg-[#030303]/80"],

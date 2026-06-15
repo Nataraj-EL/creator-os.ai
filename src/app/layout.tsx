@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "CreatorOS",
+    default: "CreatorOS - AI Companion for Digital Creators",
     template: "%s | CreatorOS",
   },
-  description: "AI Operating System for Creators",
+  description: "AI Companion for Digital Creators",
 };
 
 export default function RootLayout({

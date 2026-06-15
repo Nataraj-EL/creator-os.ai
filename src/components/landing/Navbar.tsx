@@ -46,7 +46,7 @@ export default function Navbar() {
             {/* Logo */}
             <a href="#" className="flex items-center space-x-2.5 group">
               <Logo size={36} showBg={true} className="shadow-lg shadow-brand-purple/20 group-hover:scale-105 transition-transform duration-200" />
-              <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent group-hover:to-white transition-all duration-200">
+              <span className="text-xl font-bold tracking-tight text-foreground transition-all duration-200">
                 CreatorOS<span className="text-brand-purple">.AI</span>
               </span>
             </a>

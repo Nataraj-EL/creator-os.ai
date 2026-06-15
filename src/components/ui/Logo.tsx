@@ -18,15 +18,14 @@ export default function Logo({ size = 36, showBg = true, className, ...props }: 
     >
       <defs>
         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" /> {/* Bright Cyan */}
-          <stop offset="50%" stopColor="#6366f1" /> {/* Indigo */}
-          <stop offset="100%" stopColor="#8b5cf6" /> {/* Purple */}
+          <stop offset="0%" stopColor="#a1461c" /> {/* Rust / Burnt Sienna */}
+          <stop offset="100%" stopColor="#dd6b20" /> {/* Terracotta Orange */}
         </linearGradient>
       </defs>
 
-      {/* Outer Background Circle */}
+      {/* Outer Background Circle - warm sand theme matched */}
       {showBg && (
-        <circle cx="50" cy="50" r="50" fill="#0B111E" />
+        <circle cx="50" cy="50" r="50" fill="#faf8f4" stroke="#dbd3c5" strokeWidth="3" />
       )}
 
       {/* 'C' Shaped Outer Arc */}
@@ -41,17 +40,17 @@ export default function Logo({ size = 36, showBg = true, className, ...props }: 
       {/* Dot on the Right */}
       <circle cx="85" cy="50" r="6.5" fill="url(#logoGradient)" />
 
-      {/* Center Arrow */}
+      {/* Center Arrow - dark soil color */}
       <path
         d="M 40 60 L 58 42"
-        stroke="white"
+        stroke="#261e1a"
         strokeWidth="8.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M 48 42 H 58 V 52"
-        stroke="white"
+        stroke="#261e1a"
         strokeWidth="8.5"
         strokeLinecap="round"
         strokeLinejoin="round"

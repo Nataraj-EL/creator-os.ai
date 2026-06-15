@@ -140,7 +140,7 @@ body {
 .glass-card-hover:hover {
   background: rgba(231, 226, 214, 0.95);
   border-color: var(--primary);
-  box-shadow: 0 4px 20px rgba(161, 70, 28, 0.08);
+  box-shadow: 0 4px 20px rgba(161, 70, 28, 0.12) !important;
 }
 
 .glow-btn {
@@ -155,6 +155,58 @@ body {
 .glow-btn:hover {
   background: var(--primary);
   filter: brightness(1.1);
+  box-shadow: 0 4px 20px rgba(161, 70, 28, 0.35) !important;
+}
+
+/* Forms, Dropdowns, and Inputs Standardization */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  outline: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.65;
+}
+
+select option {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+
+/* Global hover shadows mapped to orange/terracotta */
+[class*="shadow-brand-purple"],
+[class*="shadow-cyan"],
+[class*="shadow-indigo"],
+[class*="shadow-xl"] {
+  box-shadow: 0 8px 30px rgba(161, 70, 28, 0.08) !important;
+}
+
+/* Muted buttons, text indicators, and status items matching terracotta primary */
+.text-cyan-400 {
+  color: var(--primary) !important;
+}
+
+.text-indigo-400 {
+  color: var(--primary) !important;
+}
+
+.bg-cyan-500\/10,
+.bg-indigo-500\/10 {
+  background-color: rgba(161, 70, 28, 0.08) !important;
+}
+
+.border-cyan-500\/20,
+.border-indigo-500\/20 {
+  border-color: rgba(161, 70, 28, 0.2) !important;
 }
 
 /* Hardcoded Layout & Text Color Overrides for Natural Theme Integration */
@@ -171,6 +223,17 @@ body {
 [class*="bg-[#030303]/98"],
 .bg-\[\#030303\]\/98 {
   background-color: rgba(244, 238, 227, 0.98) !important;
+}
+
+[class*="bg-[#0a0a0c]"],
+[class*="bg-[#0c0c0e]"],
+[class*="bg-[#0a0f19]"],
+.bg-\[\#0a0a0c\]\/60,
+.bg-\[\#0a0a0c\]\/40,
+.bg-\[\#0c0c0e\]\/40,
+.bg-\[\#0a0f19\] {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
 }
 
 [class*="bg-zinc-950"],

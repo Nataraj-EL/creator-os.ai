@@ -29,8 +29,8 @@ export default function CTA() {
           whileHover={{ 
             y: -6, 
             scale: 1.01, 
-            borderColor: "rgba(139, 92, 246, 0.45)", 
-            boxShadow: "0 25px 50px -12px rgba(139, 92, 246, 0.2)",
+            borderColor: "rgba(161, 70, 28, 0.45)", 
+            boxShadow: "0 25px 50px -12px rgba(161, 70, 28, 0.15)",
             transition: { type: "spring", stiffness: 400, damping: 25 }
           }}
           className="glass-card rounded-3xl border border-brand-purple/20 bg-gradient-to-br from-brand-purple/[0.03] via-transparent to-transparent p-8 sm:p-12 lg:p-16 text-center relative overflow-hidden shadow-2xl"

@@ -91,6 +91,12 @@ body {
   color: var(--foreground);
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
+
+  /* Apply the subtle background box/grid design globally across all pages */
+  background-image: 
+    linear-gradient(to right, rgba(38, 30, 26, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(38, 30, 26, 0.015) 1px, transparent 1px) !important;
+  background-size: 30px 30px !important;
 }
 
 /* Custom Scrollbar */
@@ -112,19 +118,10 @@ body {
   background: var(--secondary);
 }
 
-/* Clean, Muted Grid Background utilities */
-.grid-bg-dark {
-  background-image: 
-    linear-gradient(to right, rgba(38, 30, 26, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(38, 30, 26, 0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
+/* Disable harsh layout partition grids (now managed globally and subtly by body) */
+.grid-bg-dark,
 .grid-bg-fine {
-  background-image: 
-    linear-gradient(to right, rgba(38, 30, 26, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(38, 30, 26, 0.02) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image: none !important;
 }
 
 .radial-glow {
@@ -182,11 +179,13 @@ select option {
   color: var(--foreground) !important;
 }
 
-/* Global hover shadows mapped to orange/terracotta */
+/* Global hover shadows mapped strictly to orange/terracotta */
 [class*="shadow-brand-purple"],
 [class*="shadow-cyan"],
 [class*="shadow-indigo"],
-[class*="shadow-xl"] {
+[class*="shadow-xl"],
+.shadow-2xl,
+.shadow-lg {
   box-shadow: 0 8px 30px rgba(161, 70, 28, 0.08) !important;
 }
 
@@ -265,8 +264,15 @@ select option {
   border-color: var(--border) !important;
 }
 
-[class*="bg-white/\\[0.02\\]"],
-[class*="bg-white/5"],
+/* Specific class replacements for background/hover styling */
 .bg-white\/\[0\.02\] {
+  background-color: var(--secondary) !important;
+}
+
+.hover\:bg-white\/5:hover,
+.hover\:bg-white\/\[0\.06\]:hover,
+.hover\:bg-white\/\[0\.04\]:hover,
+.hover\:bg-white\/\[0\.03\]:hover,
+.hover\:bg-white\/\[0\.02\]:hover {
   background-color: var(--secondary) !important;
 }

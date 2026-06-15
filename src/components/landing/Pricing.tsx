@@ -128,10 +128,10 @@ export default function Pricing() {
               whileHover={{
                 y: -8,
                 scale: 1.03,
-                borderColor: tier.popular ? "rgba(139, 92, 246, 0.5)" : "rgba(255, 255, 255, 0.2)",
+                borderColor: tier.popular ? "rgba(161, 70, 28, 0.5)" : "rgba(38, 30, 26, 0.15)",
                 boxShadow: tier.popular 
-                  ? "0 25px 50px -12px rgba(139, 92, 246, 0.3)" 
-                  : "0 25px 50px -12px rgba(0, 0, 0, 0.6)",
+                  ? "0 25px 50px -12px rgba(161, 70, 28, 0.2)" 
+                  : "0 25px 50px -12px rgba(0, 0, 0, 0.05)",
                 transition: { type: "spring", stiffness: 400, damping: 25 }
               }}
               className={`glass-card rounded-3xl border p-8 flex flex-col justify-between relative group ${tier.color}`}
@@ -139,8 +139,7 @@ export default function Pricing() {
               {tier.popular && (
                 <>
                   <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-brand-purple to-transparent" />
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-brand-purple text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full flex items-center space-x-1 shadow-md shadow-brand-purple/20">
-                    <Sparkles className="h-3 w-3" />
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-brand-purple text-white text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full flex items-center justify-center shadow-md shadow-brand-purple/20">
                     <span>Highly Recommended</span>
                   </div>
                 </>

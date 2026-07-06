@@ -45,7 +45,8 @@ public class GroqProvider implements AiProvider {
                 || taskType == AiTaskType.GROWTH_AUDIT 
                 || taskType == AiTaskType.REEL_ANALYSIS
                 || taskType == AiTaskType.GROWTH_ADVISOR
-                || taskType == AiTaskType.BRAIN_ANALYSIS;
+                || taskType == AiTaskType.BRAIN_ANALYSIS
+                || taskType == AiTaskType.CONTENT_REPURPOSE;
     }
 
     @Override
@@ -314,6 +315,27 @@ public class GroqProvider implements AiProvider {
                     "  \"contentExamples\": \"Signature writing patterns, sentence starters, or typical text paragraph examples extracted from the corpus.\"\n" +
                     "}",
                     brainInput.getKnowledgeText()
+            );
+        } else if (taskType == AiTaskType.CONTENT_REPURPOSE) {
+            ContentRepurposeInput repurposeInput = (ContentRepurposeInput) input;
+            prompt = String.format(
+                    "You are an expert content repurposer. Repurpose the following original content:\n\n" +
+                    "Source Type: %s\n" +
+                    "Target Format: %s\n\n" +
+                    "--- ORIGINAL CONTENT ---\n" +
+                    "%s\n" +
+                    "------------------------\n\n" +
+                    "Generate a repurposed version optimized for the target format. Also provide suggested hashtags (up to 5) and a call to action (suggestedCTA).\n\n" +
+                    "Format your output strictly as a JSON object matching this structure (do not include any backticks or extra text outside the JSON):\n" +
+                    "{\n" +
+                    "  \"title\": \"A compelling title or hook for the repurposed content\",\n" +
+                    "  \"content\": \"The fully repurposed post body or copy matching the target format\",\n" +
+                    "  \"suggestedHashtags\": [\"hashtag1\", \"hashtag2\"],\n" +
+                    "  \"suggestedCTA\": \"The suggested call to action\"\n" +
+                    "}",
+                    repurposeInput.getSourceType(),
+                    repurposeInput.getTargetFormat(),
+                    repurposeInput.getOriginalContent()
             );
         } else {
             throw new IllegalArgumentException("Task type " + taskType + " is not supported by GroqProvider");

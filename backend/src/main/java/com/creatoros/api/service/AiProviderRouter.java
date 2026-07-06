@@ -105,6 +105,10 @@ public class AiProviderRouter {
             chain.add("gemini");
             chain.add("groq");
             chain.add("mock");
+        } else if (taskType == AiTaskType.CONTENT_REPURPOSE) {
+            chain.add("gemini");
+            chain.add("groq");
+            chain.add("mock");
         }
 
         for (String providerName : chain) {

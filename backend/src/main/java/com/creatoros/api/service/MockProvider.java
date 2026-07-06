@@ -52,6 +52,10 @@ public class MockProvider implements AiProvider {
             BrainAnalysisInput brainInput = (BrainAnalysisInput) input;
             BrainAnalysisResult result = generateBrainAnalysisMock(brainInput);
             return responseClass.cast(result);
+        } else if (taskType == AiTaskType.CONTENT_REPURPOSE) {
+            ContentRepurposeInput repurposeInput = (ContentRepurposeInput) input;
+            ContentRepurposeResult result = generateContentRepurposeMock(repurposeInput);
+            return responseClass.cast(result);
         }
 
         throw new IllegalArgumentException("Unsupported task type in MockProvider: " + taskType);
@@ -673,6 +677,29 @@ public class MockProvider implements AiProvider {
                 .longTermGoals("Position as the go-to authority in the AI agent development ecosystem and build an active developer community of 100k engineers.")
                 .creatorDNA("Uses compiler error humor, advocates batching content backlogs, enforces standardized bullet spacing, rejects generic metric targets.")
                 .contentExamples("- Hook: 'Most developers write O(N) database queries when they could hit O(1). Here is the exact PostgreSQL optimization template.'\n- Transition: 'Let's open the config and verify this layout step by step.'\n- CTA: 'Grab my complete system architecture diagram linked in my bio!'")
+                .build();
+    }
+
+    private ContentRepurposeResult generateContentRepurposeMock(ContentRepurposeInput input) {
+        String original = input.getOriginalContent() != null ? input.getOriginalContent() : "";
+        SourceType source = input.getSourceType() != null ? input.getSourceType() : SourceType.POST;
+        TargetFormat target = input.getTargetFormat() != null ? input.getTargetFormat() : TargetFormat.LINKEDIN_POST;
+
+        String title = String.format("Repurposed %s to %s", source, target);
+        String content = String.format(
+                "Here is the repurposed content optimized for %s:\n\n" +
+                "Original summary:\n%s\n\n" +
+                "Key takeaways repackaged for maximum engagement on %s.",
+                target,
+                original.length() > 100 ? original.substring(0, 100) + "..." : original,
+                target
+        );
+
+        return ContentRepurposeResult.builder()
+                .title(title)
+                .content(content)
+                .suggestedHashtags(List.of("repurpose", source.toString().toLowerCase(), target.toString().toLowerCase()))
+                .suggestedCTA(String.format("Share your thoughts on this %s conversion!", target))
                 .build();
     }
 }

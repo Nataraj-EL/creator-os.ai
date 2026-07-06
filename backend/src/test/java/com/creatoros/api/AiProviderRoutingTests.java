@@ -245,4 +245,62 @@ public class AiProviderRoutingTests {
             return true;
         }), eq(KnowledgeSearchResult.class));
     }
+
+    @Test
+    void testContentRepurposeRoutingAndFallback() {
+        ContentRepurposeInput input = ContentRepurposeInput.builder()
+                .originalContent("Test Content")
+                .sourceType(SourceType.POST)
+                .targetFormat(TargetFormat.LINKEDIN_POST)
+                .build();
+
+        // 1. Stub Gemini to fail to test fallback to Groq
+        doThrow(new RuntimeException("Gemini failed")).when(geminiProvider)
+                .execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+
+        // 2. Stub Groq to succeed
+        ContentRepurposeResult mockGroqResult = ContentRepurposeResult.builder()
+                .title("Groq Repurpose Success")
+                .content("Repurposed Content")
+                .suggestedHashtags(List.of("test"))
+                .suggestedCTA("CTA")
+                .build();
+        doReturn(mockGroqResult).when(groqProvider)
+                .execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+
+        ContentRepurposeResult result = aiProviderRouter.executeWithFallback(AiTaskType.CONTENT_REPURPOSE, input, ContentRepurposeResult.class);
+
+        assertNotNull(result);
+        assertEquals("Groq Repurpose Success", result.getTitle());
+
+        // Verify order: Gemini tried first, then Groq
+        InOrder inOrder = inOrder(geminiProvider, groqProvider);
+        inOrder.verify(geminiProvider).execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+        inOrder.verify(groqProvider).execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+    }
+
+    @Test
+    void testContentRepurposeFallbackToMock() {
+        ContentRepurposeInput input = ContentRepurposeInput.builder()
+                .originalContent("Test Content")
+                .sourceType(SourceType.POST)
+                .targetFormat(TargetFormat.LINKEDIN_POST)
+                .build();
+
+        // Stub Gemini and Groq to fail
+        doThrow(new RuntimeException("Gemini failed")).when(geminiProvider)
+                .execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+        doThrow(new RuntimeException("Groq failed")).when(groqProvider)
+                .execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+
+        ContentRepurposeResult result = aiProviderRouter.executeWithFallback(AiTaskType.CONTENT_REPURPOSE, input, ContentRepurposeResult.class);
+
+        assertNotNull(result);
+        assertTrue(result.getTitle().contains("Repurposed"));
+
+        // Verify fallback chain executed fully to Mock
+        verify(geminiProvider).execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+        verify(groqProvider).execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+        verify(mockProvider).execute(eq(AiTaskType.CONTENT_REPURPOSE), any(), eq(ContentRepurposeResult.class));
+    }
 }

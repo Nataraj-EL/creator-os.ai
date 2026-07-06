@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle2, ArrowRight } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
+import BrandLogo from '@/components/ui/BrandLogo';
 
 interface FeatureDetail {
   title: string;
@@ -97,7 +98,7 @@ export default function FeatureDetailPage() {
   if (!feature) {
     return (
       <div className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center gap-4">
-        <Logo size={48} showBg={true} />
+        <BrandLogo size={48} showBg={true} textSize="text-2xl" />
         <h1 className="text-xl font-bold">Feature not found</h1>
         <Link href="/" className="text-cyan-400 hover:underline flex items-center gap-2 text-sm">
           <ArrowLeft className="h-4 w-4" />
@@ -117,11 +118,8 @@ export default function FeatureDetailPage() {
       {/* TOP PERSUASIVE CTA BAR */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#030303]/80 backdrop-blur-md py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <Logo size={32} showBg={true} />
-            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
-              CreatorOS<span className="text-brand-purple">.AI</span>
-            </span>
+          <Link href="/" className="cursor-pointer">
+            <BrandLogo size={32} showBg={true} textSize="text-lg" />
           </Link>
           <div className="flex items-center gap-4">
             <Link
@@ -229,7 +227,7 @@ export default function FeatureDetailPage() {
       <footer className="w-full border-t border-white/5 bg-[#030303] py-16 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-brand-purple/5 to-transparent pointer-events-none" />
         <div className="max-w-4xl mx-auto px-4 text-center space-y-6 relative z-10 flex flex-col items-center">
-          <Logo size={40} showBg={true} />
+          <BrandLogo size={40} showBg={true} textSize="text-2xl" />
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
             Accelerate your channel growth today
           </h2>

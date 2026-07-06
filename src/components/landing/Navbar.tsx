@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Menu, X, ArrowRight } from "lucide-react";
-import Logo from "@/components/ui/Logo";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 const navLinks = [
   { name: "Home", href: "#" },
@@ -44,11 +44,8 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <a href="#" className="flex items-center space-x-2.5 group">
-              <Logo size={36} showBg={true} className="shadow-lg shadow-brand-purple/20 group-hover:scale-105 transition-transform duration-200" />
-              <span className="text-xl font-bold tracking-tight text-foreground transition-all duration-200">
-                CreatorOS<span className="text-brand-purple">.AI</span>
-              </span>
+            <a href="#" className="cursor-pointer">
+              <BrandLogo size={36} showBg={true} />
             </a>
 
             {/* Desktop Navigation */}

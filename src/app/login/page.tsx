@@ -8,6 +8,7 @@ import { apiClient } from '../../lib/api-client';
 import { useAuthStore } from '../../lib/store';
 import { LogIn, Mail, Lock, ArrowRight, Loader2, Sparkles, X } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
+import BrandLogo from '../../components/ui/BrandLogo';
 
 const GoogleIcon = () => (
   <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -143,12 +144,7 @@ function LoginForm() {
       <div className="w-full max-w-md px-6 z-10">
         {/* Brand Logo Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Logo size={40} showBg={true} />
-            <span className="text-2xl font-bold tracking-tight text-white">
-              CreatorOS<span className="text-brand-purple">.AI</span>
-            </span>
-          </div>
+          <BrandLogo size={40} showBg={true} textSize="text-2xl" className="mb-2" />
           <p className="text-sm text-zinc-400">Intelligent Operating System for Creator Growth</p>
         </div>
 

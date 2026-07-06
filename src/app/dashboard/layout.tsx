@@ -12,6 +12,7 @@ import {
   Sparkles, Plus, Check 
 } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
+import BrandLogo from '../../components/ui/BrandLogo';
 
 interface SidebarItem {
   name: string;
@@ -130,12 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           
-          <div className="flex items-center gap-2">
-            <Logo size={32} showBg={true} />
-            <span className="text-xl font-bold tracking-tight text-foreground hidden sm:inline-block">
-              CreatorOS<span className="text-brand-purple">.AI</span>
-            </span>
-          </div>
+          <BrandLogo size={32} showBg={true} textClassName="hidden sm:inline-block" />
 
           <div className="h-4 w-[1px] bg-border mx-2 hidden md:block" />
 
@@ -311,10 +307,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm">
             <div className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border p-4 space-y-6 z-40">
               <div className="flex items-center justify-between px-3 border-b border-border pb-4">
-                <div className="flex items-center gap-2">
-                  <Logo size={28} showBg={true} />
-                  <span className="text-md font-bold tracking-tight text-foreground">CreatorOS.AI</span>
-                </div>
+                <BrandLogo size={28} showBg={true} textSize="text-md" />
                 <button 
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-1.5 text-zinc-400 hover:text-foreground hover:bg-muted rounded-lg"

@@ -5,6 +5,7 @@ import Link from 'next/navigation';
 import { apiClient } from '../../lib/api-client';
 import { Mail, ArrowLeft, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
+import BrandLogo from '../../components/ui/BrandLogo';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -56,12 +57,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md px-6 z-10">
         {/* Brand Logo Header */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Logo size={40} showBg={true} />
-            <span className="text-2xl font-bold tracking-tight text-white">
-              Creator<span className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">OS</span>
-            </span>
-          </div>
+          <BrandLogo size={40} showBg={true} textSize="text-2xl" className="mb-2" />
           <p className="text-sm text-zinc-400">Intelligent Operating System for Creator Growth</p>
         </div>
 

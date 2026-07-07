@@ -92,7 +92,7 @@ const renderFormattedText = (text: string) => {
   });
 };
 
-export default function ContentStudioPage() {
+export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { defaultTool?: 'scriptwriter' | 'repurposer' } = {}) {
   const activeWorkspace = useAuthStore((state) => state.activeWorkspace);
 
   // States
@@ -103,7 +103,7 @@ export default function ContentStudioPage() {
   const [generationStep, setGenerationStep] = useState(0);
 
   // Repurposer States
-  const [activeTool, setActiveTool] = useState<'scriptwriter' | 'repurposer'>('scriptwriter');
+  const [activeTool, setActiveTool] = useState<'scriptwriter' | 'repurposer'>(defaultTool);
   const [repurposeContentText, setRepurposeContentText] = useState('');
   const [repurposeSourceType, setRepurposeSourceType] = useState('SCRIPT');
   const [repurposeTargetFormat, setRepurposeTargetFormat] = useState('LINKEDIN_POST');

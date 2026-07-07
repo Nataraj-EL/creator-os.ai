@@ -9,7 +9,7 @@ import {
   LayoutDashboard, FolderKanban, TrendingUp, Video, 
   Database, Users, BarChart3, Settings, Bell, 
   Menu, X, ChevronDown, LogOut, User as UserIcon, 
-  Sparkles, Plus, Check 
+  Sparkles, Plus, Check, Wand2
 } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
 import BrandLogo from '../../components/ui/BrandLogo';
@@ -25,6 +25,7 @@ const sidebarItems: SidebarItem[] = [
   { name: 'Workspaces', href: '/dashboard/workspaces', icon: FolderKanban },
   { name: 'Growth Advisor', href: '/dashboard/growth', icon: TrendingUp },
   { name: 'Content Studio', href: '/dashboard/content', icon: Video },
+  { name: 'AI Content Repurposer', href: '/dashboard/repurpose', icon: Wand2 },
   { name: 'Knowledge Hub', href: '/dashboard/knowledge', icon: Database },
   { name: 'Reel Analyzer', href: '/dashboard/audience', icon: Users },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },

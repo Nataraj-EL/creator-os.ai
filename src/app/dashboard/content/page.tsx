@@ -38,6 +38,15 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
+const TARGET_FORMAT_LABELS: Record<string, string> = {
+  LINKEDIN_POST: 'LinkedIn Post',
+  INSTAGRAM_CAROUSEL: 'Instagram Carousel',
+  X_THREAD: 'X Thread',
+  YOUTUBE_COMMUNITY: 'YouTube Community Post',
+  INSTAGRAM_CAPTION: 'Instagram Caption',
+  EMAIL_NEWSLETTER: 'Email Newsletter',
+};
+
 const stripMarkdown = (text: string) => {
   if (!text) return '';
   return text
@@ -495,6 +504,14 @@ export default function ContentStudioPage() {
 
   // Export handlers
   const handleCopyToClipboard = () => {
+    if (activeTool === 'repurposer') {
+      if (!repurposeResult) return;
+      const tags = repurposeResult.suggestedHashtags ? repurposeResult.suggestedHashtags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ') : '';
+      const text = `TITLE: ${repurposeResult.title}\n\nCONTENT:\n${repurposeResult.content}\n\nHASHTAGS:\n${tags}\n\nCTA:\n${repurposeResult.suggestedCTA}`;
+      navigator.clipboard.writeText(text);
+      addToast("Copied all repurposed content!", "success");
+      return;
+    }
     if (!selectedProject) return;
     const dateStr = selectedProject ? new Date(selectedProject.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const text = `TITLE: ${editorTitle}\nPLATFORM: ${primaryPlatform || 'YouTube / Instagram'}\nGOAL: ${editorPrimaryGoal || 'Reach'}\nGENERATED: ${dateStr}\n\n--------------------------------\n\nHOOKS\n\n${normalizeBullets(editorHook)}\n\n--------------------------------\n\nSCRIPT\n\n${normalizeBullets(editorScript)}\n\n--------------------------------\n\nCALL TO ACTIONS\n\n${normalizeBullets(editorCta)}`;
@@ -503,6 +520,20 @@ export default function ContentStudioPage() {
   };
 
   const handleDownloadTxt = () => {
+    if (activeTool === 'repurposer') {
+      if (!repurposeResult) return;
+      const tags = repurposeResult.suggestedHashtags ? repurposeResult.suggestedHashtags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ') : '';
+      const text = `TITLE: ${repurposeResult.title}\n\nCONTENT:\n${repurposeResult.content}\n\nHASHTAGS:\n${tags}\n\nCTA:\n${repurposeResult.suggestedCTA}`;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${repurposeResult.title.toLowerCase().replace(/\s+/g, '-')}-repurposed.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+      addToast("Downloaded repurposed TXT file", "success");
+      return;
+    }
     if (!selectedProject) return;
     const dateStr = selectedProject ? new Date(selectedProject.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const text = `TITLE: ${editorTitle}\nPLATFORM: ${primaryPlatform || 'YouTube / Instagram'}\nGOAL: ${editorPrimaryGoal || 'Reach'}\nGENERATED: ${dateStr}\n\n--------------------------------\n\nHOOKS\n\n${normalizeBullets(editorHook)}\n\n--------------------------------\n\nSCRIPT\n\n${normalizeBullets(editorScript)}\n\n--------------------------------\n\nCALL TO ACTIONS\n\n${normalizeBullets(editorCta)}`;
@@ -517,6 +548,20 @@ export default function ContentStudioPage() {
   };
 
   const handleDownloadMarkdown = () => {
+    if (activeTool === 'repurposer') {
+      if (!repurposeResult) return;
+      const tags = repurposeResult.suggestedHashtags ? repurposeResult.suggestedHashtags.map(t => t.startsWith('#') ? t : `#${t}`).join(' ') : '';
+      const markdown = `# ${repurposeResult.title}\n\n**Format:** ${TARGET_FORMAT_LABELS[repurposeTargetFormat]}\n**Source:** ${repurposeSourceType}\n\n---\n\n## Content\n\n${repurposeResult.content}\n\n---\n\n## Hashtags\n\n${tags}\n\n---\n\n## CTA\n\n${repurposeResult.suggestedCTA}`;
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${repurposeResult.title.toLowerCase().replace(/\s+/g, '-')}-repurposed.md`;
+      link.click();
+      URL.revokeObjectURL(url);
+      addToast("Downloaded repurposed Markdown file", "success");
+      return;
+    }
     if (!selectedProject) return;
     const dateStr = selectedProject ? new Date(selectedProject.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const markdown = `# ${editorTitle}\n\n**Platform:** ${primaryPlatform || 'YouTube / Instagram'}\n**Goal:** ${editorPrimaryGoal || 'Reach'}\n**Generated:** ${dateStr}\n\n---\n\n## Hooks\n\n${normalizeBullets(editorHook)}\n\n---\n\n## Script\n\n${normalizeBullets(editorScript)}\n\n---\n\n## Call To Actions\n\n${normalizeBullets(editorCta)}`;
@@ -531,6 +576,80 @@ export default function ContentStudioPage() {
   };
 
   const handleDownloadPdf = async () => {
+    if (activeTool === 'repurposer') {
+      if (!repurposeResult) return;
+      try {
+        const { jsPDF } = await import('jspdf');
+        const doc = new jsPDF();
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        const cleanTitle = stripMarkdown(repurposeResult.title || 'Repurposed Content');
+        const splitTitle = doc.splitTextToSize(cleanTitle, 170);
+        let y = 25;
+        for (let line of splitTitle) {
+          doc.text(line, 20, y);
+          y += 10;
+        }
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Format: ${TARGET_FORMAT_LABELS[repurposeTargetFormat]}   |   Source: ${repurposeSourceType}`, 20, y);
+        y += 5;
+        
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.5);
+        doc.line(20, y, 190, y);
+        y += 12;
+        
+        const addSection = (header: string, content: string) => {
+          const contentNorm = stripMarkdown(content);
+          if (y > 265) {
+            doc.addPage();
+            y = 25;
+          }
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(12);
+          doc.setTextColor(0);
+          doc.text(header.toUpperCase(), 20, y);
+          y += 8;
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(50);
+          
+          const splitText = doc.splitTextToSize(contentNorm, 170);
+          for (let line of splitText) {
+            if (y > 275) {
+              doc.addPage();
+              y = 25;
+            }
+            doc.text(line, 20, y);
+            y += 6;
+          }
+          y += 10;
+        };
+        
+        if (repurposeResult.content) {
+          addSection('Content', repurposeResult.content);
+        }
+        if (repurposeResult.suggestedHashtags && repurposeResult.suggestedHashtags.length > 0) {
+          addSection('Hashtags', repurposeResult.suggestedHashtags.join(' '));
+        }
+        if (repurposeResult.suggestedCTA) {
+          addSection('Suggested CTA', repurposeResult.suggestedCTA);
+        }
+        
+        doc.save(`${cleanTitle.toLowerCase().replace(/\s+/g, '-')}-repurposed.pdf`);
+        addToast("Downloaded repurposed PDF", "success");
+      } catch (err) {
+        console.error("Failed to generate PDF:", err);
+        addToast("Failed to export as PDF", "error");
+      }
+      return;
+    }
+
     if (!selectedProject) return;
     try {
       const { jsPDF } = await import('jspdf');
@@ -1395,12 +1514,9 @@ export default function ContentStudioPage() {
                     onChange={(e) => setRepurposeTargetFormat(e.target.value)}
                     className="w-full bg-[#0a0a0c]/60 border border-white/[0.08] rounded-xl px-3 py-3 text-xs text-white focus:outline-none focus:border-cyan-500/30 transition-all cursor-pointer"
                   >
-                    <option value="LINKEDIN_POST">LINKEDIN_POST</option>
-                    <option value="INSTAGRAM_CAROUSEL">INSTAGRAM_CAROUSEL</option>
-                    <option value="X_THREAD">X_THREAD</option>
-                    <option value="YOUTUBE_COMMUNITY">YOUTUBE_COMMUNITY</option>
-                    <option value="INSTAGRAM_CAPTION">INSTAGRAM_CAPTION</option>
-                    <option value="EMAIL_NEWSLETTER">EMAIL_NEWSLETTER</option>
+                    {Object.entries(TARGET_FORMAT_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1453,7 +1569,74 @@ export default function ContentStudioPage() {
                 <>
                   <div className="flex items-center justify-between border-b border-white/5 pb-3">
                     <span className="text-xs font-bold text-white uppercase tracking-wider">Repurposed Result</span>
-                    <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded">Success</span>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyToClipboard}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-zinc-400 hover:text-white rounded-lg transition-all cursor-pointer bg-white/[0.02] border border-white/5 hover:border-white/10 uppercase"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy All</span>
+                      </button>
+
+                      {/* Export Dropdown */}
+                      <div className="relative" ref={dropdownRef}>
+                        <button
+                          onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 rounded-lg transition-all cursor-pointer uppercase"
+                        >
+                          <FileDown className="h-3.5 w-3.5" />
+                          <span>Export</span>
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                        {exportDropdownOpen && (
+                          <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-[#111114] border border-white/5 p-1 shadow-2xl z-50">
+                            <button
+                              onClick={() => {
+                                handleCopyToClipboard();
+                                setExportDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            >
+                              <Copy className="h-3.5 w-3.5 text-zinc-500" />
+                              <span>Copy to Clipboard</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDownloadTxt();
+                                setExportDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            >
+                              <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                              <span>Download TXT</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDownloadMarkdown();
+                                setExportDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            >
+                              <Wand2 className="h-3.5 w-3.5 text-zinc-500" />
+                              <span>Download Markdown</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDownloadPdf();
+                                setExportDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            >
+                              <FileDown className="h-3.5 w-3.5 text-zinc-500" />
+                              <span>Export as PDF</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded">Success</span>
+                    </div>
                   </div>
 
                   {/* Title Section */}
@@ -1469,7 +1652,7 @@ export default function ContentStudioPage() {
                           <span>Copy</span>
                         </button>
                       </div>
-                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-white leading-relaxed font-semibold">
+                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-white leading-relaxed font-semibold break-words">
                         {repurposeResult.title}
                       </div>
                     </div>
@@ -1480,15 +1663,20 @@ export default function ContentStudioPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider font-mono">Optimized Content</span>
-                        <button
-                          onClick={() => handleCopySection(repurposeResult.content, "Content")}
-                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
-                        >
-                          <Copy className="h-3 w-3" />
-                          <span>Copy</span>
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[9px] text-zinc-500 font-mono">
+                            {repurposeResult.content.trim().split(/\s+/).filter(Boolean).length} words | {repurposeResult.content.length} chars
+                          </span>
+                          <button
+                            onClick={() => handleCopySection(repurposeResult.content, "Content")}
+                            className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                          >
+                            <Copy className="h-3 w-3" />
+                            <span>Copy</span>
+                          </button>
+                        </div>
                       </div>
-                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap select-text">
+                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap select-text break-words">
                         {repurposeResult.content}
                       </div>
                     </div>
@@ -1533,7 +1721,7 @@ export default function ContentStudioPage() {
                           <span>Copy</span>
                         </button>
                       </div>
-                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-semibold italic">
+                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-semibold italic break-words">
                         {repurposeResult.suggestedCTA}
                       </div>
                     </div>

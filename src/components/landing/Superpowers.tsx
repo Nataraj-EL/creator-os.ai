@@ -41,6 +41,13 @@ const features: FeatureCard[] = [
     title: "Creator Brain Twin",
     description: "Build a structured profile representing your unique voice, expertise, and communication style. All AI outputs automatically adapt to your identity.",
   },
+  {
+    id: "repurposer",
+    number: "05",
+    tag: "Repurposing",
+    title: "AI Content Repurposer",
+    description: "Transform your scripts or posts into high-performing LinkedIn posts, Instagram carousels, X threads, YouTube community updates, captions, and newsletters instantly.",
+  },
 ];
 
 export default function Superpowers() {

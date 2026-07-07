@@ -86,6 +86,23 @@ const featureDetails: Record<string, FeatureDetail> = {
       "Writing Pattern: Open with rhetorical question, follow with three bullet items.",
       "Confidence: 94% (Learned from 15 upload document logs)"
     ]
+  },
+  repurposer: {
+    title: "AI Content Repurposer",
+    tag: "Repurposing",
+    summary: "Transform original scripts or posts into high-converting posts, threads, carousels, and newsletters.",
+    longDescription: "Reach audiences across platforms without spending hours rewrite-mapping your drafts. The AI Content Repurposer takes your raw scripts, posts, or articles and automatically restructures them into optimized target layouts—tailoring format hooks, spacing rules, CTAs, and hashtags for LinkedIn, Instagram, X (Twitter), YouTube, and Email newsletters.",
+    details: [
+      "Automatically reformats original script files into platform-native post structures.",
+      "Extracts custom CTA actions and trending hashtags matching the target format.",
+      "Optimizes length, spacing, and sentence flow to maximize readability and traction."
+    ],
+    mockUiTitle: "Repurposed result...",
+    mockUiItems: [
+      "Target Format: LinkedIn Post",
+      "Title: '99% of creators get this wrong within the first 3 seconds...'",
+      "CTA: '👉 Follow for weekly insights on audience growth.'"
+    ]
   }
 };
 

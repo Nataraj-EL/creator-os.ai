@@ -92,6 +92,19 @@ export default function ContentStudioPage() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);
+
+  // Repurposer States
+  const [activeTool, setActiveTool] = useState<'scriptwriter' | 'repurposer'>('scriptwriter');
+  const [repurposeContentText, setRepurposeContentText] = useState('');
+  const [repurposeSourceType, setRepurposeSourceType] = useState('SCRIPT');
+  const [repurposeTargetFormat, setRepurposeTargetFormat] = useState('LINKEDIN_POST');
+  const [repurposing, setRepurposing] = useState(false);
+  const [repurposeResult, setRepurposeResult] = useState<{
+    title: string;
+    content: string;
+    suggestedHashtags: string[];
+    suggestedCTA: string;
+  } | null>(null);
   
   // Onboarding/Generation Form State
   const [newTitle, setNewTitle] = useState('');
@@ -448,6 +461,38 @@ export default function ContentStudioPage() {
     }
   };
 
+  const handleRepurpose = async () => {
+    if (!activeWorkspace) return;
+    if (!repurposeContentText.trim()) {
+      addToast("Please enter original content to repurpose", "error");
+      return;
+    }
+
+    setRepurposing(true);
+    try {
+      const response = await apiClient.post(`/api/v1/workspaces/${activeWorkspace.id}/repurpose`, {
+        originalContent: repurposeContentText,
+        sourceType: repurposeSourceType,
+        targetFormat: repurposeTargetFormat
+      });
+
+      if (response.data) {
+        setRepurposeResult(response.data);
+        addToast("Content repurposed successfully!", "success");
+      }
+    } catch (err: any) {
+      console.error(err);
+      addToast(err.response?.data?.error || "Failed to repurpose content", "error");
+    } finally {
+      setRepurposing(false);
+    }
+  };
+
+  const handleCopySection = (text: string, sectionName: string) => {
+    navigator.clipboard.writeText(text);
+    addToast(`${sectionName} copied to clipboard!`, "success");
+  };
+
   // Export handlers
   const handleCopyToClipboard = () => {
     if (!selectedProject) return;
@@ -670,8 +715,35 @@ export default function ContentStudioPage() {
         </AnimatePresence>
       </div>
 
-      {/* Main Studio Body Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
+      {/* Mode Selector Toggle */}
+      <div className="flex bg-[#0a0a0c]/60 border border-white/5 rounded-xl p-1 self-start flex-shrink-0">
+        <button
+          onClick={() => setActiveTool('scriptwriter')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            activeTool === 'scriptwriter' 
+              ? 'bg-gradient-to-r from-[#a1461c] to-[#dd6b20] text-white shadow-md' 
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <Video className="h-4 w-4" />
+          <span>Scriptwriter</span>
+        </button>
+        <button
+          onClick={() => setActiveTool('repurposer')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+            activeTool === 'repurposer' 
+              ? 'bg-gradient-to-r from-[#a1461c] to-[#dd6b20] text-white shadow-md' 
+              : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          <Wand2 className="h-4 w-4" />
+          <span>Content Repurposer</span>
+        </button>
+      </div>
+
+      {activeTool === 'scriptwriter' ? (
+        /* Main Studio Body Grid */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
 
         {/* LEFT COLUMN: Sidebar list + Metrics cards (4 cols) */}
         <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-hidden">
@@ -1280,8 +1352,200 @@ export default function ContentStudioPage() {
           </AnimatePresence>
 
         </div>
-
       </div>
+      ) : (
+        /* Content Repurposer Tool Grid */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch w-full">
+          {/* Form Input Side */}
+          <div className="lg:col-span-5 flex flex-col h-full overflow-hidden">
+            <div className="glass-card rounded-2xl border border-white/5 p-6 flex flex-col space-y-4 bg-card/10 h-full overflow-y-auto custom-scrollbar">
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Repurpose Content</h3>
+                <p className="text-[10px] text-zinc-500">Repackage scripts, articles, or posts into optimized target formats instantly.</p>
+              </div>
+
+              <div className="space-y-1.5 flex-1 flex flex-col">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex-shrink-0">Original Content</label>
+                <textarea
+                  placeholder="Paste your script, article text, or post content here..."
+                  value={repurposeContentText}
+                  onChange={(e) => setRepurposeContentText(e.target.value)}
+                  className="w-full flex-1 min-h-[250px] bg-[#0a0a0c]/60 border border-white/[0.08] rounded-xl p-4 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-cyan-500/30 transition-all resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Source Type</label>
+                  <select
+                    value={repurposeSourceType}
+                    onChange={(e) => setRepurposeSourceType(e.target.value)}
+                    className="w-full bg-[#0a0a0c]/60 border border-white/[0.08] rounded-xl px-3 py-3 text-xs text-white focus:outline-none focus:border-cyan-500/30 transition-all cursor-pointer"
+                  >
+                    <option value="SCRIPT">SCRIPT</option>
+                    <option value="ARTICLE">ARTICLE</option>
+                    <option value="POST">POST</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Target Format</label>
+                  <select
+                    value={repurposeTargetFormat}
+                    onChange={(e) => setRepurposeTargetFormat(e.target.value)}
+                    className="w-full bg-[#0a0a0c]/60 border border-white/[0.08] rounded-xl px-3 py-3 text-xs text-white focus:outline-none focus:border-cyan-500/30 transition-all cursor-pointer"
+                  >
+                    <option value="LINKEDIN_POST">LINKEDIN_POST</option>
+                    <option value="INSTAGRAM_CAROUSEL">INSTAGRAM_CAROUSEL</option>
+                    <option value="X_THREAD">X_THREAD</option>
+                    <option value="YOUTUBE_COMMUNITY">YOUTUBE_COMMUNITY</option>
+                    <option value="INSTAGRAM_CAPTION">INSTAGRAM_CAPTION</option>
+                    <option value="EMAIL_NEWSLETTER">EMAIL_NEWSLETTER</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={handleRepurpose}
+                disabled={repurposing || !repurposeContentText.trim()}
+                className="w-full glow-btn bg-gradient-to-r from-[#a1461c] to-[#dd6b20] hover:from-[#a1461c]/90 hover:to-[#dd6b20]/90 text-white font-bold rounded-xl py-3.5 text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 flex-shrink-0"
+              >
+                {repurposing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-white" />
+                    <span>Repurposing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    <span>Repurpose Content</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Outputs Display Side */}
+          <div className="lg:col-span-7 flex flex-col h-full overflow-hidden">
+            <div className="glass-card rounded-2xl border border-white/5 p-6 flex flex-col bg-card/10 h-full overflow-y-auto custom-scrollbar space-y-5">
+              
+              {!repurposeResult && !repurposing && (
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-3 py-20">
+                  <div className="h-10 w-10 rounded-xl bg-[#a1461c]/10 border border-[#a1461c]/20 flex items-center justify-center text-[#a1461c] shadow-md">
+                    <Wand2 className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white">No output generated yet</h4>
+                  <p className="text-[10px] text-zinc-500 max-w-xs">Fill in your original content and settings to create the repurposed variants.</p>
+                </div>
+              )}
+
+              {repurposing && (
+                <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20">
+                  <Loader2 className="h-8 w-8 text-[#a1461c] animate-spin" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-white animate-pulse">Running AI engine...</h4>
+                    <p className="text-[10px] text-zinc-500">Formatting content, extracting hooks, and generating CTAs.</p>
+                  </div>
+                </div>
+              )}
+
+              {repurposeResult && !repurposing && (
+                <>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">Repurposed Result</span>
+                    <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded">Success</span>
+                  </div>
+
+                  {/* Title Section */}
+                  {repurposeResult.title && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-[#dd6b20] uppercase tracking-wider font-mono">Title / Hook Line</span>
+                        <button
+                          onClick={() => handleCopySection(repurposeResult.title, "Title")}
+                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                        >
+                          <Copy className="h-3 w-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-white leading-relaxed font-semibold">
+                        {repurposeResult.title}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Content Section */}
+                  {repurposeResult.content && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider font-mono">Optimized Content</span>
+                        <button
+                          onClick={() => handleCopySection(repurposeResult.content, "Content")}
+                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                        >
+                          <Copy className="h-3 w-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap select-text">
+                        {repurposeResult.content}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Suggested Hashtags */}
+                  {repurposeResult.suggestedHashtags && repurposeResult.suggestedHashtags.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider font-mono">Suggested Hashtags</span>
+                        <button
+                          onClick={() => handleCopySection(repurposeResult.suggestedHashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '), "Hashtags")}
+                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                        >
+                          <Copy className="h-3 w-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-white/[0.01] border border-white/5">
+                        {repurposeResult.suggestedHashtags.map((tag, idx) => {
+                          const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
+                          return (
+                            <span key={idx} className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md">
+                              {formattedTag}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Suggested CTA */}
+                  {repurposeResult.suggestedCTA && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider font-mono">Suggested CTA</span>
+                        <button
+                          onClick={() => handleCopySection(repurposeResult.suggestedCTA, "Call-to-Action")}
+                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                        >
+                          <Copy className="h-3 w-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-semibold italic">
+                        {repurposeResult.suggestedCTA}
+                      </div>
+                    </div>
+                  )}
+
+                </>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

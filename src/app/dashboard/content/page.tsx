@@ -1233,15 +1233,15 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                         <ChevronDown className="h-3 w-3" />
                       </button>
                       {exportDropdownOpen && (
-                        <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-[#111114] border border-white/5 p-1 shadow-2xl z-50">
+                        <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-card border border-border p-1 shadow-2xl z-50">
                           <button
                             onClick={() => {
                               handleCopyToClipboard();
                               setExportDropdownOpen(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                           >
-                            <Copy className="h-3.5 w-3.5 text-zinc-500" />
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>Copy to Clipboard</span>
                           </button>
                           <button
@@ -1249,9 +1249,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                               handleDownloadTxt();
                               setExportDropdownOpen(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                           >
-                            <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>Download TXT</span>
                           </button>
                           <button
@@ -1259,9 +1259,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                               handleDownloadMarkdown();
                               setExportDropdownOpen(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                           >
-                            <Wand2 className="h-3.5 w-3.5 text-zinc-500" />
+                            <Wand2 className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>Download Markdown</span>
                           </button>
                           <button
@@ -1269,9 +1269,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                               handleDownloadPdf();
                               setExportDropdownOpen(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                           >
-                            <FileDown className="h-3.5 w-3.5 text-zinc-500" />
+                            <FileDown className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>Export as PDF</span>
                           </button>
                         </div>
@@ -1590,15 +1590,15 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                           <ChevronDown className="h-3 w-3" />
                         </button>
                         {exportDropdownOpen && (
-                          <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-[#111114] border border-white/5 p-1 shadow-2xl z-50">
+                          <div className="absolute right-0 mt-1.5 w-44 rounded-xl bg-card border border-border p-1 shadow-2xl z-50">
                             <button
                               onClick={() => {
                                 handleCopyToClipboard();
                                 setExportDropdownOpen(false);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                             >
-                              <Copy className="h-3.5 w-3.5 text-zinc-500" />
+                              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                               <span>Copy to Clipboard</span>
                             </button>
                             <button
@@ -1606,9 +1606,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                                 handleDownloadTxt();
                                 setExportDropdownOpen(false);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                             >
-                              <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                               <span>Download TXT</span>
                             </button>
                             <button
@@ -1616,9 +1616,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                                 handleDownloadMarkdown();
                                 setExportDropdownOpen(false);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                             >
-                              <Wand2 className="h-3.5 w-3.5 text-zinc-500" />
+                              <Wand2 className="h-3.5 w-3.5 text-muted-foreground" />
                               <span>Download Markdown</span>
                             </button>
                             <button
@@ -1626,9 +1626,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                                 handleDownloadPdf();
                                 setExportDropdownOpen(false);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg text-left"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg text-left transition-all cursor-pointer"
                             >
-                              <FileDown className="h-3.5 w-3.5 text-zinc-500" />
+                              <FileDown className="h-3.5 w-3.5 text-muted-foreground" />
                               <span>Export as PDF</span>
                             </button>
                           </div>

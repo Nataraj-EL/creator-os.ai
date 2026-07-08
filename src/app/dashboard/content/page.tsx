@@ -1639,93 +1639,93 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                     </div>
                   </div>
 
-                  {/* Title Section */}
-                  {repurposeResult.title && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-[#dd6b20] uppercase tracking-wider font-mono">Title / Hook Line</span>
-                        <button
-                          onClick={() => handleCopySection(repurposeResult.title, "Title")}
-                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
-                        >
-                          <Copy className="h-3 w-3" />
-                          <span>Copy</span>
-                        </button>
-                      </div>
-                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-white leading-relaxed font-semibold break-words">
-                        {repurposeResult.title}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Content Section */}
-                  {repurposeResult.content && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider font-mono">Optimized Content</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[9px] text-zinc-500 font-mono">
-                            {repurposeResult.content.trim().split(/\s+/).filter(Boolean).length} words | {repurposeResult.content.length} chars
-                          </span>
-                          <button
-                            onClick={() => handleCopySection(repurposeResult.content, "Content")}
-                            className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
-                          >
-                            <Copy className="h-3 w-3" />
-                            <span>Copy</span>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap select-text break-words">
-                        {repurposeResult.content}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Suggested Hashtags */}
-                  {repurposeResult.suggestedHashtags && repurposeResult.suggestedHashtags.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-purple-400 uppercase tracking-wider font-mono">Suggested Hashtags</span>
-                        <button
-                          onClick={() => handleCopySection(repurposeResult.suggestedHashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '), "Hashtags")}
-                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
-                        >
-                          <Copy className="h-3 w-3" />
-                          <span>Copy</span>
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-white/[0.01] border border-white/5">
-                        {repurposeResult.suggestedHashtags.map((tag, idx) => {
-                          const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
-                          return (
-                            <span key={idx} className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md">
-                              {formattedTag}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Suggested CTA */}
-                  {repurposeResult.suggestedCTA && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider font-mono">Suggested CTA</span>
-                        <button
-                          onClick={() => handleCopySection(repurposeResult.suggestedCTA, "Call-to-Action")}
-                          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
-                        >
-                          <Copy className="h-3 w-3" />
-                          <span>Copy</span>
-                        </button>
-                      </div>
-                      <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 text-xs text-zinc-300 leading-relaxed font-semibold italic break-words">
-                        {repurposeResult.suggestedCTA}
-                      </div>
-                    </div>
-                  )}
+                   {/* Title Section */}
+                   {repurposeResult.title && (
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-bold text-[#dd6b20] uppercase tracking-wider font-mono">Title / Hook Line</span>
+                         <button
+                           onClick={() => handleCopySection(repurposeResult.title, "Title")}
+                           className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                         >
+                           <Copy className="h-3 w-3" />
+                           <span>Copy</span>
+                         </button>
+                       </div>
+                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-[#dd6b20] border border-white/5 text-sm leading-relaxed text-zinc-300 break-words">
+                         {repurposeResult.title}
+                       </div>
+                     </div>
+                   )}
+ 
+                   {/* Content Section */}
+                   {repurposeResult.content && (
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider font-mono">Optimized Content</span>
+                         <div className="flex items-center gap-3">
+                           <span className="text-[9px] text-zinc-500 font-mono">
+                             {repurposeResult.content.trim().split(/\s+/).filter(Boolean).length} words | {repurposeResult.content.length} chars
+                           </span>
+                           <button
+                             onClick={() => handleCopySection(repurposeResult.content, "Content")}
+                             className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                           >
+                             <Copy className="h-3 w-3" />
+                             <span>Copy</span>
+                           </button>
+                         </div>
+                       </div>
+                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-indigo-500 border border-white/5 text-sm leading-relaxed text-zinc-300 whitespace-pre-wrap select-text break-words">
+                         {repurposeResult.content}
+                       </div>
+                     </div>
+                   )}
+ 
+                   {/* Suggested Hashtags */}
+                   {repurposeResult.suggestedHashtags && repurposeResult.suggestedHashtags.length > 0 && (
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-bold text-purple-400 uppercase tracking-wider font-mono">Suggested Hashtags</span>
+                         <button
+                           onClick={() => handleCopySection(repurposeResult.suggestedHashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '), "Hashtags")}
+                           className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                         >
+                           <Copy className="h-3 w-3" />
+                           <span>Copy</span>
+                         </button>
+                       </div>
+                       <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-white/[0.01] border border-white/5">
+                         {repurposeResult.suggestedHashtags.map((tag, idx) => {
+                           const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
+                           return (
+                             <span key={idx} className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-md">
+                               {formattedTag}
+                             </span>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   )}
+ 
+                   {/* Suggested CTA */}
+                   {repurposeResult.suggestedCTA && (
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider font-mono">Suggested CTA</span>
+                         <button
+                           onClick={() => handleCopySection(repurposeResult.suggestedCTA, "Call-to-Action")}
+                           className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-white transition-all cursor-pointer"
+                         >
+                           <Copy className="h-3 w-3" />
+                           <span>Copy</span>
+                         </button>
+                       </div>
+                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-emerald-500 border border-white/5 text-sm leading-relaxed text-zinc-300 break-words">
+                         {repurposeResult.suggestedCTA}
+                       </div>
+                     </div>
+                   )}
 
                 </>
               )}

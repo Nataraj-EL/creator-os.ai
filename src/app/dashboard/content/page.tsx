@@ -1652,7 +1652,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                            <span>Copy</span>
                          </button>
                        </div>
-                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-[#dd6b20] border border-white/5 text-sm leading-relaxed text-zinc-300 break-words">
+                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-[#dd6b20] border border-white/5 text-xs leading-relaxed text-white break-words">
                          {repurposeResult.title}
                        </div>
                      </div>
@@ -1676,7 +1676,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                            </button>
                          </div>
                        </div>
-                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-indigo-500 border border-white/5 text-sm leading-relaxed text-zinc-300 whitespace-pre-wrap select-text break-words">
+                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-indigo-500 border border-white/5 text-xs leading-relaxed text-white whitespace-pre-wrap select-text break-words">
                          {repurposeResult.content}
                        </div>
                      </div>
@@ -1721,7 +1721,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                            <span>Copy</span>
                          </button>
                        </div>
-                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-emerald-500 border border-white/5 text-sm leading-relaxed text-zinc-300 break-words">
+                       <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-emerald-500 border border-white/5 text-xs leading-relaxed text-white break-words">
                          {repurposeResult.suggestedCTA}
                        </div>
                      </div>

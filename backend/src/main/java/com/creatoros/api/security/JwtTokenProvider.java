@@ -40,8 +40,8 @@ public class JwtTokenProvider {
         Instant expiryDate = now.plusMillis(jwtExpirationInMs);
 
         return Jwts.builder()
-                .subject(user.getEmail())
                 .claims(claims)
+                .subject(user.getEmail())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiryDate))
                 .signWith(key)

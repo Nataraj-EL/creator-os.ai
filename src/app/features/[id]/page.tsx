@@ -22,12 +22,12 @@ const featureDetails: Record<string, FeatureDetail> = {
   scriptwriter: {
     title: "Smart Video Scriptwriter",
     tag: "Scripting",
-    summary: "Write engaging video scripts, find trending topic structures, and draft scroll-stopping hooks in seconds.",
-    longDescription: "Struggling to outline your videos or keep viewers hooked in the first 3 seconds? The Smart Video Scriptwriter researches current audience interests, maps optimal video structures, and drafts high-impact intros tailored to your platform. It takes the heavy lifting out of content creation so you can focus on presenting.",
+    summary: "Draft video script hooks, outlines, and full scripts in your exact voice.",
+    longDescription: "Struggling to outline your videos or keep viewers hooked in the first 3 seconds? The Smart Video Scriptwriter researches current trends, maps engaging video structures, and drafts scroll-stopping intros tailored to your target platform, helping you focus on filming.",
     details: [
-      "Finds what topics and angles your audience is currently active on.",
-      "Drafts multiple video hooks matching your selected style tone (educational, hype, engaging).",
-      "Creates visual scene-by-scene script cards with outlines, pacing advice, and camera directions."
+      "Finds high-interest topics and video angles that get viewers clicking.",
+      "Generates multiple hook variations to test (hype, educational, storytelling).",
+      "Drafts visual script cards complete with outlines, speaking pace tips, and camera advice."
     ],
     mockUiTitle: "Drafting script hooks...",
     mockUiItems: [
@@ -39,35 +39,35 @@ const featureDetails: Record<string, FeatureDetail> = {
   growth: {
     title: "AI Growth Advisor",
     tag: "Growth",
-    summary: "Critique and optimize your channel positioning, content gaps, and goals.",
-    longDescription: "Ready to scale your YouTube or Instagram brand? The AI Growth Advisor performs deep public profile audits on niche positioning, formatting strategies, and target audience alignment. Get a structured roadmap detailing how to optimize CTR and subscriber traction.",
+    summary: "Get a clear growth blueprint and action plan for your social channels.",
+    longDescription: "Ready to scale your YouTube or Instagram brand? The Growth Advisor audits your public channel positioning, content gaps, and formatting strategies to deliver a structured 30-day week-by-week roadmap showing you exactly how to grow.",
     details: [
-      "Performs real-time profile audits based on public branding signals.",
-      "Identifies content gaps and format opportunities within your niche.",
-      "Generates custom 30-day week-by-week growth roadmap blueprints."
+      "Audits your public channel layout, descriptions, and branding consistency.",
+      "Finds new content topics and formatting trends working in your niche.",
+      "Provides a custom, step-by-step 30-day growth action plan."
     ],
     mockUiTitle: "Growth Strategy Plan",
     mockUiItems: [
-      "Niche Positioning: Technical educational tutorials with sleek aesthetics.",
-      "Primary Opportunity: Introduce weekly challenge reels to capture high viral lift.",
-      "Action: Shorten visual intros to less than 1.5 seconds."
+      "Niche: Tech tutorials with clean, visual aesthetics.",
+      "Opportunity: Post weekly challenge shorts to reach new viewers.",
+      "Tip: Keep visual hooks to under 1.5 seconds."
     ]
   },
   analyzer: {
     title: "Reel Analyzer",
     tag: "Optimization",
-    summary: "Verify hook engagement and retention patterns before posting video content.",
-    longDescription: "Upload your short-form videos to run predictive intelligence on viral momentum. The Reel Analyzer evaluates visual momentum, speech pacing, caption phrasing, and CTA alignment against proven audience retention frameworks so you publish high-performing posts.",
+    summary: "Get feedback on your video hooks and captions before you post.",
+    longDescription: "Upload your short-form videos to verify your pacing and hook strength. The Reel Analyzer scans your video pacing, caption readability, and Call-to-Action placement against high-retention editing rules, helping you publish with confidence.",
     details: [
-      "Scores hook engagement potential out of 100 based on initial visual/audio signals.",
-      "Predicts average viewer retention and identifies potential drop-off zones.",
-      "Critiques caption phrasing and call-to-actions to maximize subscriber conversions."
+      "Gives you a clear hook score based on visual pacing and early audio clarity.",
+      "Pinpoints exactly where viewers are likely to lose interest and swipe away.",
+      "Provides direct feedback on caption readability and CTA text conversions."
     ],
-    mockUiTitle: "Reel Retention Forecast",
+    mockUiTitle: "Reel Pacing Report",
     mockUiItems: [
-      "Hook Score: 92/100 (Strong visual momentum in first 3s)",
-      "CTA Recommendation: Place caption CTA on screen for at least 4s.",
-      "Viral Potential: High (Fast transition rate matches current algorithm trends)"
+      "Hook Score: 92/100 (Engaging transition in the first 3 seconds)",
+      "CTA Tip: Keep your text call-to-action on screen for at least 4 seconds.",
+      "Pacing: Excellent (Fast transition rate matches current creator standards)"
     ]
   },
   knowledge: {
@@ -76,22 +76,22 @@ const featureDetails: Record<string, FeatureDetail> = {
     summary: "Train a structured profile on your voice, style, and brand preferences.",
     longDescription: "Build a structured digital double of your creative voice. The Creator Brain Twin reads your uploaded knowledge documents, style guides, and brand transcripts to construct a persistent intelligence profile. Every content generation draft automatically adopts your exact expertise.",
     details: [
-      "Extracts creator DNA markers, personality traits, and signature writing examples.",
-      "Tracks document counts and total words analyzed to calculate profile confidence.",
-      "Injects personal writing style context into Content Studio, Growth Advisor, and Reel Analyzer."
+      "Learns your unique tone of voice, writing style, and signature vocabulary.",
+      "Organizes your uploaded files, transcripts, and notes in one secure place.",
+      "Automatically applies your style across all scripting and repurposing drafts."
     ],
     mockUiTitle: "Brain Profile Matrix",
     mockUiItems: [
-      "Voice: Authoritative yet accessible, HSL-focused design vocabulary.",
-      "Writing Pattern: Open with rhetorical question, follow with three bullet items.",
-      "Confidence: 94% (Learned from 15 upload document logs)"
+      "Voice: Informative, friendly, and structured.",
+      "Writing Pattern: Opens with a question, uses short bullet points.",
+      "Profile Strength: High (Trained on 15 uploaded files & scripts)"
     ]
   },
   repurposer: {
     title: "AI Content Repurposer",
     tag: "Repurposing",
-    summary: "Transform original scripts or posts into high-converting posts, threads, carousels, and newsletters.",
-    longDescription: "Reach audiences across platforms without spending hours rewrite-mapping your drafts. The AI Content Repurposer takes your raw scripts, posts, or articles and automatically restructures them into optimized target layouts—tailoring format hooks, spacing rules, CTAs, and hashtags for LinkedIn, Instagram, X (Twitter), YouTube, and Email newsletters.",
+    summary: "Turn a single video script or post into distribution drafts for all your social platforms.",
+    longDescription: "Expand your reach without rewriting your content from scratch. The AI Content Repurposer takes your video scripts, blogs, or posts and automatically reformats them into optimized drafts for LinkedIn, Instagram carousels, X threads, YouTube posts, and email newsletters.",
     details: [
       "Automatically reformats original script files into platform-native post structures.",
       "Extracts custom CTA actions and trending hashtags matching the target format.",
@@ -117,9 +117,9 @@ export default function FeatureDetailPage() {
       <div className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center gap-4">
         <BrandLogo size={48} showBg={true} textSize="text-2xl" />
         <h1 className="text-xl font-bold">Feature not found</h1>
-        <Link href="/" className="text-cyan-400 hover:underline flex items-center gap-2 text-sm">
+        <Link href="/features" className="text-cyan-400 hover:underline flex items-center gap-2 text-sm">
           <ArrowLeft className="h-4 w-4" />
-          <span>Back to Homepage</span>
+          <span>Back to Features</span>
         </Link>
       </div>
     );
@@ -140,7 +140,7 @@ export default function FeatureDetailPage() {
           </Link>
           <div className="flex items-center gap-4">
             <Link
-              href="/"
+              href="/features"
               className="text-xs font-semibold text-zinc-400 hover:text-white transition-all hidden sm:inline-flex items-center gap-1.5"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -161,7 +161,7 @@ export default function FeatureDetailPage() {
         
         {/* Breadcrumb / Back button */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/features')}
           className="mb-8 flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-white transition-all cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />

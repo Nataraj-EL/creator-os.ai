@@ -20,7 +20,7 @@ const comparisonData = {
 
 export default function Problem() {
   return (
-    <section className="relative py-28 bg-[#030303] overflow-hidden" id="features">
+    <section className="relative py-28 bg-[#030303] overflow-hidden" id="bottleneck">
       {/* Glows */}
       <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-brand-pink/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-brand-purple/5 blur-[120px] rounded-full pointer-events-none" />

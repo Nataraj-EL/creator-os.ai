@@ -87,7 +87,7 @@ export default function Superpowers() {
   };
 
   return (
-    <section className="relative py-28 bg-[#030303] overflow-hidden" id="superpowers">
+    <section className="relative py-28 bg-[#030303] overflow-hidden" id="features">
       {/* Background radial glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-brand-blue/5 blur-[120px] rounded-full pointer-events-none" />
 

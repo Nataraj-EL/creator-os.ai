@@ -21,9 +21,9 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight max-w-5xl leading-[1.1]"
         >
-          The Autonomous AI Operating System for{" "}
+          The AI Growth Companion for{" "}
           <span className="bg-gradient-to-r from-brand-purple via-brand-pink to-brand-blue bg-clip-text text-transparent animate-shine bg-[length:200%_auto]">
-            Professional Creators
+            Digital Creators
           </span>
         </motion.h1>
 
@@ -34,7 +34,7 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mt-6 text-lg sm:text-xl text-zinc-400 max-w-3xl leading-relaxed"
         >
-          Deploy multi-agent networks to script content, generate hyper-targeted A/B test packaging, schedule omnichannel publications, and optimize metrics - autonomously.
+          Write scroll-stopping video scripts, repurpose your content for other platforms, audit your brand, and optimize audience retention—all in one place.
         </motion.p>
 
         {/* CTAs */}

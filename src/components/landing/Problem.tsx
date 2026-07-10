@@ -11,10 +11,10 @@ const comparisonData = {
     { text: "Gut-feeling decisions on content positioning leading to flatlining growth.", icon: BarChart2 },
   ],
   newWay: [
-    { text: "A single autonomous canvas linking writing templates, storage, and publication.", icon: CheckCircle2 },
+    { text: "A single workspace linking video scripting, repurposing, and channel diagnostics.", icon: CheckCircle2 },
     { text: "Instant script formatting, trend research, and scroll-stopping intros.", icon: CheckCircle2 },
     { text: "Instant sync matching engagement analytics directly with your script drafts.", icon: CheckCircle2 },
-    { text: "Continuous growth advisor positioning critiques and retention-optimized video reviews.", icon: CheckCircle2 },
+    { text: "Continuous growth advisor feedback and viewer retention analysis.", icon: CheckCircle2 },
   ],
 };
 
@@ -31,10 +31,10 @@ export default function Problem() {
             The Creator Bottle Neck
           </h2>
           <p className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-[1.15]">
-            Why scaling content operations today feels completely broken.
+            Why growing your channel today feels completely broken.
           </p>
           <p className="mt-4 text-zinc-400 text-lg">
-            Creators are bogged down by administrative task loops instead of doing what they do best: creating. CreatorOS AI changes the landscape completely.
+            Creators are stuck spending hours writing outlines, formatting posts, and reading complex analytics instead of doing what they do best: creating content.
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export default function Problem() {
                 </h3>
               </div>
               <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
-                An integrated, AI-first engine that delegates the heavy-lifting of content delivery, analysis, and generation to autonomous agents.
+                An integrated creator dashboard that handles script generation, multi-format repurposing, and channel analysis natively.
               </p>
 
               <div className="space-y-6">

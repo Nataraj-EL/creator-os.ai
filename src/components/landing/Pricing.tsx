@@ -7,8 +7,8 @@ import { Check, Sparkles } from "lucide-react";
 const pricingTiers = [
   {
     name: "Starter",
-    priceMonthly: 2499,
-    priceYearly: 1999,
+    priceMonthly: 499,
+    priceYearly: 399,
     description: "Perfect for independent solo creators starting to automate their brand growth.",
     features: [
       "2 Active Brand Projects",
@@ -23,8 +23,8 @@ const pricingTiers = [
   },
   {
     name: "Creator Pro",
-    priceMonthly: 6499,
-    priceYearly: 4999,
+    priceMonthly: 999,
+    priceYearly: 799,
     description: "Designed for scaling digital channels running weekly publishing cycles.",
     features: [
       "10 Active Brand Projects",
@@ -41,8 +41,8 @@ const pricingTiers = [
   },
   {
     name: "Enterprise Network",
-    priceMonthly: 19999,
-    priceYearly: 15999,
+    priceMonthly: 2499,
+    priceYearly: 1999,
     description: "Tailored for digital media companies managing multiple talent channels.",
     features: [
       "Unlimited Active Brand Projects",

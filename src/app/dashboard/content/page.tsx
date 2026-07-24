@@ -8,7 +8,8 @@ import {
   Video, FileText, Loader2, Wand2, Search, Filter, 
   ChevronDown, Copy, Download, Trash2, Plus, Sparkles, 
   AlertCircle, FileDown, CheckCircle2, ChevronRight,
-  FolderKanban, Calendar, Clock, BarChart3, Edit3, ArrowRight
+  FolderKanban, Calendar, Clock, BarChart3, Edit3, ArrowRight,
+  Info
 } from 'lucide-react';
 
 interface ContentVariant {
@@ -77,15 +78,54 @@ const renderFormattedText = (text: string) => {
   if (!text) return null;
   const lines = text.split('\n');
   return lines.map((line, lineIdx) => {
+    const trimmed = line.trimStart();
+    const isBullet = trimmed.startsWith('•');
+    const numMatch = trimmed.match(/^(\d+\.)\s+(.*)/);
+    
+    if (isBullet) {
+      const displayLine = trimmed.substring(1).trimStart();
+      const parts = displayLine.split(/(\*\*[^*]+\*\*)/g);
+      const parsedLine = parts.map((part, partIdx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={partIdx} className="font-extrabold text-foreground">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+      return (
+        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground">
+          <span className="text-primary flex-shrink-0 select-none">•</span>
+          <span className="flex-1">{parsedLine}</span>
+        </div>
+      );
+    }
+    
+    if (numMatch) {
+      const numPrefix = numMatch[1];
+      const rest = numMatch[2];
+      const parts = rest.split(/(\*\*[^*]+\*\*)/g);
+      const parsedLine = parts.map((part, partIdx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={partIdx} className="font-extrabold text-foreground">{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+      return (
+        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground">
+          <span className="text-primary font-bold flex-shrink-0 select-none">{numPrefix}</span>
+          <span className="flex-1">{parsedLine}</span>
+        </div>
+      );
+    }
+
     const parts = line.split(/(\*\*[^*]+\*\*)/g);
     const parsedLine = parts.map((part, partIdx) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={partIdx} className="font-extrabold text-white">{part.slice(2, -2)}</strong>;
+        return <strong key={partIdx} className="font-extrabold text-foreground">{part.slice(2, -2)}</strong>;
       }
       return part;
     });
     return (
-      <div key={lineIdx} className="min-h-[1.5rem]">
+      <div key={lineIdx} className="min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground">
         {parsedLine}
       </div>
     );
@@ -604,7 +644,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
         y += 12;
         
         const addSection = (header: string, content: string) => {
-          const contentNorm = stripMarkdown(content);
+          const contentNorm = stripMarkdown(normalizeBullets(content));
           if (y > 265) {
             doc.addPage();
             y = 25;
@@ -619,14 +659,29 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
           doc.setFontSize(10);
           doc.setTextColor(50);
           
-          const splitText = doc.splitTextToSize(contentNorm, 170);
-          for (let line of splitText) {
-            if (y > 275) {
-              doc.addPage();
-              y = 25;
+          const lines = contentNorm.split('\n');
+          for (let rawLine of lines) {
+            const trimmed = rawLine.trimStart();
+            const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-');
+            const displayLine = isBullet ? `•  ${trimmed.substring(1).trimStart()}` : rawLine;
+            
+            const splitLines = doc.splitTextToSize(displayLine, 170);
+            for (let i = 0; i < splitLines.length; i++) {
+              let printLine = splitLines[i];
+              let xOffset = 20;
+              
+              if (isBullet && i > 0) {
+                xOffset = 24;
+                printLine = doc.splitTextToSize(printLine, 166)[0] || printLine;
+              }
+              
+              if (y > 275) {
+                doc.addPage();
+                y = 25;
+              }
+              doc.text(printLine, xOffset, y);
+              y += 6;
             }
-            doc.text(line, 20, y);
-            y += 6;
           }
           y += 10;
         };
@@ -704,14 +759,29 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
         doc.setFontSize(10);
         doc.setTextColor(50);
         
-        const splitText = doc.splitTextToSize(contentNorm, 170);
-        for (let line of splitText) {
-          if (y > 275) {
-            doc.addPage();
-            y = 25;
+        const lines = contentNorm.split('\n');
+        for (let rawLine of lines) {
+          const trimmed = rawLine.trimStart();
+          const isBullet = trimmed.startsWith('•') || trimmed.startsWith('-');
+          const displayLine = isBullet ? `•  ${trimmed.substring(1).trimStart()}` : rawLine;
+          
+          const splitLines = doc.splitTextToSize(displayLine, 170);
+          for (let i = 0; i < splitLines.length; i++) {
+            let printLine = splitLines[i];
+            let xOffset = 20;
+            
+            if (isBullet && i > 0) {
+              xOffset = 24;
+              printLine = doc.splitTextToSize(printLine, 166)[0] || printLine;
+            }
+            
+            if (y > 275) {
+              doc.addPage();
+              y = 25;
+            }
+            doc.text(printLine, xOffset, y);
+            y += 6;
           }
-          doc.text(line, 20, y);
-          y += 6;
         }
         y += 10; // Extra spacing after section
       };
@@ -823,11 +893,12 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                   ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
                   : toast.type === 'error'
                   ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                  : 'bg-zinc-800/80 border-zinc-700 text-zinc-300'
+                  : 'bg-card border-border text-foreground'
               }`}
             >
               {toast.type === 'success' && <CheckCircle2 className="h-4 w-4" />}
               {toast.type === 'error' && <AlertCircle className="h-4 w-4" />}
+              {toast.type === 'info' && <Info className="h-4 w-4 text-primary" />}
               <span>{toast.message}</span>
             </motion.div>
           ))}
@@ -1301,7 +1372,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                           value={editorTopic}
                           onChange={(e) => setEditorTopic(e.target.value)}
                           rows={2}
-                          className="w-full bg-[#0a0a0c]/60 border border-white/[0.04] rounded-xl p-3 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/30 transition-all resize-none font-medium leading-relaxed"
+                          className="w-full bg-card border border-border rounded-xl p-3 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-brand transition-all resize-none font-medium leading-relaxed"
                           placeholder="Specify your draft details..."
                         />
                       </div>
@@ -1310,7 +1381,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                         <select
                           value={editorPrimaryGoal}
                           onChange={(e) => setEditorPrimaryGoal(e.target.value)}
-                          className="w-full bg-[#0a0a0c]/60 border border-white/[0.04] rounded-xl p-3.5 text-xs text-zinc-300 focus:outline-none focus:border-cyan-500/30 transition-all cursor-pointer"
+                          className="w-full bg-card border border-border rounded-xl p-3.5 text-xs text-foreground focus:outline-none focus:border-brand transition-all cursor-pointer"
                         >
                           <option value="Reach">Reach</option>
                           <option value="Brand Awareness">Brand Awareness</option>
@@ -1331,7 +1402,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                       
                       {/* Hook variants quick select tabs */}
                       {hookVariants.length > 0 && (
-                        <div className="flex gap-1.5 bg-[#0a0a0c]/50 p-1 rounded-lg border border-white/[0.04]">
+                        <div className="flex gap-1.5 bg-muted p-1 rounded-lg border border-border">
                           {hookVariants.map((hv, idx) => (
                             <button
                               key={hv.id}
@@ -1357,7 +1428,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                       onChange={(e) => setEditorHook(e.target.value)}
                       onBlur={(e) => setEditorHook(normalizeBullets(e.target.value))}
                       rows={3}
-                      className="w-full bg-[#0a0a0c]/60 border border-white/[0.04] rounded-xl p-4.5 text-xs text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-cyan-500/30 transition-all resize-none border-l-2 border-l-cyan-500"
+                      className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-cyan-500"
                       placeholder="Generated hook variant content..."
                     />
                   </div>
@@ -1373,7 +1444,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                         value={editorScript}
                         onChange={(e) => setEditorScript(e.target.value)}
                         onBlur={(e) => setEditorScript(normalizeBullets(e.target.value))}
-                        className="w-full h-72 bg-[#0a0a0c]/60 border border-white/[0.04] rounded-xl p-5 text-xs text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-indigo-500/30 transition-all resize-none"
+                        className="w-full h-72 bg-card border border-border rounded-xl p-5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-indigo-500"
                         placeholder="Core script explanation content body..."
                       />
                       {generating && (
@@ -1394,7 +1465,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                       
                       {/* CTA variants quick select tabs */}
                       {ctaVariants.length > 0 && (
-                        <div className="flex gap-1.5 bg-[#0a0a0c]/50 p-1 rounded-lg border border-white/[0.04]">
+                        <div className="flex gap-1.5 bg-muted p-1 rounded-lg border border-border">
                           {ctaVariants.map((cv, idx) => (
                             <button
                               key={cv.id}
@@ -1420,17 +1491,17 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                       onChange={(e) => setEditorCta(e.target.value)}
                       onBlur={(e) => setEditorCta(normalizeBullets(e.target.value))}
                       rows={3}
-                      className="w-full bg-[#0a0a0c]/60 border border-white/[0.04] rounded-xl p-4.5 text-xs text-zinc-300 font-mono leading-relaxed focus:outline-none focus:border-cyan-500/30 transition-all resize-none border-l-2 border-l-indigo-500"
+                      className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-purple-500"
                       placeholder="CTA text variant content..."
                     />
                   </div>
 
                 </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar bg-[#070709]/60 rounded-2xl border border-white/5 p-8 max-w-3xl mx-auto w-full">
-                    <div className="space-y-2 text-center pb-6 border-b border-white/5">
-                      <h1 className="text-2xl font-black text-white">{editorTitle || 'Untitled Project'}</h1>
-                      <div className="flex items-center justify-center gap-4 text-[10px] text-zinc-500 uppercase tracking-widest font-mono">
+                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar bg-card rounded-2xl border border-border p-8 max-w-3xl mx-auto w-full">
+                    <div className="space-y-2 text-center pb-6 border-b border-border">
+                      <h1 className="text-2xl font-black text-foreground">{editorTitle || 'Untitled Project'}</h1>
+                      <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground uppercase tracking-widest font-mono">
                         <span>Platform: {primaryPlatform || 'YouTube / Instagram'}</span>
                         <span>•</span>
                         <span>Goal: {editorPrimaryGoal || 'Reach'}</span>
@@ -1442,24 +1513,24 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                     {/* HOOK Section */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider font-mono">Hooks</h3>
-                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-cyan-500 border border-white/5 text-sm leading-relaxed text-zinc-300">
-                        {renderFormattedText(normalizeBullets(editorHook)) || <span className="italic text-zinc-600">No hook content generated.</span>}
+                      <div className="p-5 rounded-xl bg-muted/20 border-l-2 border-l-cyan-500 border border-border text-sm leading-relaxed text-foreground">
+                        {renderFormattedText(normalizeBullets(editorHook)) || <span className="italic text-muted-foreground">No hook content generated.</span>}
                       </div>
                     </div>
 
                     {/* SCRIPT Section */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider font-mono">Script</h3>
-                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-indigo-500 border border-white/5 text-sm leading-relaxed text-zinc-300">
-                        {renderFormattedText(normalizeBullets(editorScript)) || <span className="italic text-zinc-600">No script content generated.</span>}
+                      <div className="p-5 rounded-xl bg-muted/20 border-l-2 border-l-indigo-500 border border-border text-sm leading-relaxed text-foreground">
+                        {renderFormattedText(normalizeBullets(editorScript)) || <span className="italic text-muted-foreground">No script content generated.</span>}
                       </div>
                     </div>
 
                     {/* CTA Section */}
                     <div className="space-y-2">
                       <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider font-mono">Call To Actions</h3>
-                      <div className="p-5 rounded-xl bg-white/[0.01] border-l-2 border-l-purple-500 border border-white/5 text-sm leading-relaxed text-zinc-300">
-                        {renderFormattedText(normalizeBullets(editorCta)) || <span className="italic text-zinc-600">No CTA content generated.</span>}
+                      <div className="p-5 rounded-xl bg-muted/20 border-l-2 border-l-purple-500 border border-border text-sm leading-relaxed text-foreground">
+                        {renderFormattedText(normalizeBullets(editorCta)) || <span className="italic text-muted-foreground">No CTA content generated.</span>}
                       </div>
                     </div>
                   </div>

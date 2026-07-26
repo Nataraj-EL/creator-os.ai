@@ -92,7 +92,7 @@ const renderFormattedText = (text: string) => {
         return part;
       });
       return (
-        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground">
+        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-2.5">
           <span className="text-primary flex-shrink-0 select-none">•</span>
           <span className="flex-1">{parsedLine}</span>
         </div>
@@ -110,7 +110,7 @@ const renderFormattedText = (text: string) => {
         return part;
       });
       return (
-        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground">
+        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-2.5">
           <span className="text-primary font-bold flex-shrink-0 select-none">{numPrefix}</span>
           <span className="flex-1">{parsedLine}</span>
         </div>
@@ -125,7 +125,7 @@ const renderFormattedText = (text: string) => {
       return part;
     });
     return (
-      <div key={lineIdx} className="min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground">
+      <div key={lineIdx} className="min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-3.5">
         {parsedLine}
       </div>
     );

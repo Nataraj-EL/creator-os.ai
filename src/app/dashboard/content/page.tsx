@@ -935,41 +935,19 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
         /* Main Studio Body Grid */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
 
-        {/* LEFT COLUMN: Sidebar list + Metrics cards (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-hidden">
+        {/* LEFT COLUMN: Sidebar list (4 cols) */}
+        <div className="lg:col-span-4 flex flex-col h-full overflow-hidden">
           
-          {/* Analytics Summary Cards (Inline Grid) */}
-          <div className="grid grid-cols-2 gap-3 flex-shrink-0">
-            <div className="glass-card rounded-xl p-3.5 border border-white/5 space-y-1 bg-white/[0.01]">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Total Drafts</span>
-              <p className="text-xl font-black text-white">{analytics.total}</p>
-            </div>
-            <div className="glass-card rounded-xl p-3.5 border border-white/5 space-y-1 bg-white/[0.01]">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Created This Week</span>
-              <p className="text-xl font-black text-cyan-400">+{analytics.createdThisWeek}</p>
-            </div>
-            <div className="glass-card rounded-xl p-3.5 border border-white/5 space-y-1 bg-white/[0.01]">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Avg Topic Len</span>
-              <p className="text-xl font-black text-indigo-400">{analytics.avgTopicLength} ch</p>
-            </div>
-            <div className="glass-card rounded-xl p-3.5 border border-white/5 space-y-1 bg-white/[0.01] overflow-hidden">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Active Brand</span>
-              <p className="text-xs font-bold text-emerald-400 truncate mt-1">
-                {activeWorkspace?.name || 'None'}
-              </p>
-            </div>
-          </div>
-
           {/* Project List Sidebar Panel */}
-          <div className="glass-card rounded-2xl border border-white/5 flex flex-col flex-1 overflow-hidden bg-card/10">
+          <div className="glass-card rounded-2xl border border-border flex flex-col flex-1 overflow-hidden bg-card/10">
             
             {/* Header + Search/Filters */}
-            <div className="p-4 border-b border-white/5 space-y-3 flex-shrink-0">
+            <div className="p-4 border-b border-border space-y-3 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Project Library</span>
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider">Project Library</span>
                 <button
                   onClick={() => setIsOnboarding(true)}
-                  className="flex items-center gap-1 text-[10px] text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 px-2.5 py-1 rounded-lg font-bold uppercase transition-all"
+                  className="flex items-center gap-1 text-[10px] text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg font-bold uppercase transition-all cursor-pointer"
                 >
                   <Plus className="h-3 w-3" />
                   <span>Create New</span>
@@ -978,24 +956,24 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
 
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3.5 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+                <Search className="absolute left-3.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search drafts..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#0a0a0c]/60 border border-white/[0.06] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500/30 transition-all"
+                  className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-brand transition-all"
                 />
               </div>
 
               {/* Filters */}
               <div className="flex gap-2 text-[10px]">
-                <div className="flex-1 flex items-center bg-[#0a0a0c]/40 border border-white/[0.04] rounded-lg px-2 py-1">
-                  <Filter className="h-3 w-3 text-zinc-500 mr-1.5" />
+                <div className="flex-1 flex items-center bg-card border border-border rounded-lg px-2 py-1">
+                  <Filter className="h-3 w-3 text-muted-foreground mr-1.5" />
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-transparent text-zinc-400 hover:text-white cursor-pointer w-full focus:outline-none"
+                    className="bg-transparent text-muted-foreground hover:text-foreground cursor-pointer w-full focus:outline-none"
                   >
                     <option value="ALL">All</option>
                     <option value="DRAFT">DRAFT</option>
@@ -1004,11 +982,11 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                   </select>
                 </div>
 
-                <div className="flex-1 flex items-center bg-[#0a0a0c]/40 border border-white/[0.04] rounded-lg px-2 py-1">
+                <div className="flex-1 flex items-center bg-card border border-border rounded-lg px-2 py-1">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-transparent text-zinc-400 hover:text-white cursor-pointer w-full focus:outline-none"
+                    className="bg-transparent text-muted-foreground hover:text-foreground cursor-pointer w-full focus:outline-none"
                   >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
@@ -1022,35 +1000,35 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
             <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
               {loadingProjects ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2">
-                  <Loader2 className="h-6 w-6 text-zinc-500 animate-spin" />
-                  <span className="text-[10px] text-zinc-500">Loading library...</span>
+                  <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+                  <p className="text-xs text-muted-foreground">Loading drafts...</p>
                 </div>
-              ) : projects.length === 0 ? (
-                <div className="text-center py-12 space-y-2">
-                  <Wand2 className="h-8 w-8 text-zinc-600 mx-auto opacity-50" />
-                  <p className="text-xs text-zinc-500">No project drafts found</p>
+              ) : filteredProjects.length === 0 ? (
+                <div className="text-center py-12 space-y-3">
+                  <Wand2 className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
+                  <p className="text-xs text-muted-foreground">No project drafts found</p>
                 </div>
               ) : (
                 <>
                   {/* TODAY */}
                   {groupedProjects.today.length > 0 && (
                     <div className="space-y-1.5">
-                      <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2">Today</h4>
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">Today</h4>
                       {groupedProjects.today.map((p) => (
                         <button
                           key={p.projectId}
                           onClick={() => selectProjectDetails(p)}
-                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${
+                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                             selectedProject?.projectId === p.projectId
-                              ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border-cyan-500/20 text-cyan-400'
-                              : 'bg-white/[0.01] hover:bg-white/[0.03] border-white/[0.03] text-zinc-400 hover:text-white'
+                              ? 'bg-primary/10 border-primary/30 text-primary font-bold'
+                              : 'bg-card hover:bg-muted border-border text-foreground'
                           }`}
                         >
                           <div className="min-w-0 flex-1 pr-2">
-                            <p className="text-xs font-semibold truncate text-white">{p.title}</p>
-                            <p className="text-[10px] text-zinc-500 truncate mt-0.5">{p.topic}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">{p.title}</p>
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{p.topic}</p>
                           </div>
-                          <ChevronRight className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                         </button>
                       ))}
                     </div>
@@ -1059,22 +1037,22 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                   {/* LAST 7 DAYS */}
                   {groupedProjects.last7Days.length > 0 && (
                     <div className="space-y-1.5">
-                      <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2">Last 7 Days</h4>
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">Last 7 Days</h4>
                       {groupedProjects.last7Days.map((p) => (
                         <button
                           key={p.projectId}
                           onClick={() => selectProjectDetails(p)}
-                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${
+                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                             selectedProject?.projectId === p.projectId
-                              ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border-cyan-500/20 text-cyan-400'
-                              : 'bg-white/[0.01] hover:bg-white/[0.03] border-white/[0.03] text-zinc-400 hover:text-white'
+                              ? 'bg-primary/10 border-primary/30 text-primary font-bold'
+                              : 'bg-card hover:bg-muted border-border text-foreground'
                           }`}
                         >
                           <div className="min-w-0 flex-1 pr-2">
-                            <p className="text-xs font-semibold truncate text-white">{p.title}</p>
-                            <p className="text-[10px] text-zinc-500 truncate mt-0.5">{p.topic}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">{p.title}</p>
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{p.topic}</p>
                           </div>
-                          <ChevronRight className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                         </button>
                       ))}
                     </div>
@@ -1083,22 +1061,22 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                   {/* OLDER */}
                   {groupedProjects.older.length > 0 && (
                     <div className="space-y-1.5">
-                      <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2">Older</h4>
+                      <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">Older</h4>
                       {groupedProjects.older.map((p) => (
                         <button
                           key={p.projectId}
                           onClick={() => selectProjectDetails(p)}
-                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${
+                          className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                             selectedProject?.projectId === p.projectId
-                              ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border-cyan-500/20 text-cyan-400'
-                              : 'bg-white/[0.01] hover:bg-white/[0.03] border-white/[0.03] text-zinc-400 hover:text-white'
+                              ? 'bg-primary/10 border-primary/30 text-primary font-bold'
+                              : 'bg-card hover:bg-muted border-border text-foreground'
                           }`}
                         >
                           <div className="min-w-0 flex-1 pr-2">
-                            <p className="text-xs font-semibold truncate text-white">{p.title}</p>
-                            <p className="text-[10px] text-zinc-500 truncate mt-0.5">{p.topic}</p>
+                            <p className="text-xs font-semibold truncate text-foreground">{p.title}</p>
+                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{p.topic}</p>
                           </div>
-                          <ChevronRight className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                         </button>
                       ))}
                     </div>

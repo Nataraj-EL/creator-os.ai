@@ -220,15 +220,53 @@ export default function GrowthAdvisorPage() {
   };
 
   const formatHandle = (url: string) => {
+    if (!url) return "@creator";
     try {
-      if (url.includes('youtube.com') || url.includes('youtu.be')) {
-        const match = url.match(/youtube\.com\/(@[a-zA-Z0-9_.-]+)/);
-        return match ? match[1] : "@youtube_creator";
-      } else if (url.includes('instagram.com')) {
-        const match = url.match(/instagram\.com\/([a-zA-Z0-9_.-]+)/);
+      const urlLower = url.toLowerCase();
+      if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+        // 1. Search Query results
+        if (urlLower.includes('search_query=')) {
+          const match = url.match(/search_query=([^&]+)/);
+          if (match) {
+            try {
+              const decoded = decodeURIComponent(match[1].replace(/\+/g, ' '));
+              return '@' + decoded.toLowerCase().replace(/[^a-z0-9_.-]/g, '_');
+            } catch (e) {}
+          }
+        }
+        // 2. Standard handle format
+        const handleMatch = url.match(/youtube\.com\/(@[a-zA-Z0-9_.-]+)/i);
+        if (handleMatch) return handleMatch[1];
+
+        // 3. Legacy c/ or user/ formats
+        const legacyMatch = url.match(/youtube\.com\/(?:c|user)\/([a-zA-Z0-9_.-]+)/i);
+        if (legacyMatch) return '@' + legacyMatch[1];
+
+        // 4. Channel ID format
+        const channelMatch = url.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/i);
+        if (channelMatch) {
+          return '@channel_' + channelMatch[1].substring(0, Math.min(8, channelMatch[1].length));
+        }
+
+        // 5. Shortened format
+        const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/i);
+        if (shortMatch) return '@' + shortMatch[1];
+
+        // 6. Direct path name fallback
+        const directMatch = url.match(/youtube\.com\/([a-zA-Z0-9_.-]+)/i);
+        if (directMatch) {
+          const candidate = directMatch[1];
+          const ignored = ['results', 'watch', 'feed', 'gaming', 'channel', 'c', 'user', 'playlist', 'premium', 'shorts'];
+          if (!ignored.includes(candidate.toLowerCase())) {
+            return '@' + candidate;
+          }
+        }
+        return "@youtube_creator";
+      } else if (urlLower.includes('instagram.com')) {
+        const match = url.match(/instagram\.com\/([a-zA-Z0-9_.-]+)/i);
         return match ? `@${match[1]}` : "@instagram_creator";
       }
-    } catch(e) {}
+    } catch (e) {}
     return "@creator";
   };
 

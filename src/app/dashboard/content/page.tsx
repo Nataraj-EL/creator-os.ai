@@ -967,13 +967,13 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
               </div>
 
               {/* Filters */}
-              <div className="flex gap-2 text-[10px]">
-                <div className="flex-1 flex items-center bg-card border border-border rounded-lg px-2 py-1">
-                  <Filter className="h-3 w-3 text-muted-foreground mr-1.5" />
+              <div className="flex gap-4 text-[10px] items-center pt-1">
+                <div className="flex items-center gap-1.5">
+                  <Filter className="h-3 w-3 text-muted-foreground" />
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="bg-transparent text-muted-foreground hover:text-foreground cursor-pointer w-full focus:outline-none"
+                    className="borderless-input bg-transparent text-[10px] text-muted-foreground hover:text-foreground cursor-pointer font-bold focus:outline-none"
                   >
                     <option value="ALL">All</option>
                     <option value="DRAFT">DRAFT</option>
@@ -982,11 +982,11 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                   </select>
                 </div>
 
-                <div className="flex-1 flex items-center bg-card border border-border rounded-lg px-2 py-1">
+                <div className="flex items-center gap-1.5">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-transparent text-muted-foreground hover:text-foreground cursor-pointer w-full focus:outline-none"
+                    className="borderless-input bg-transparent text-[10px] text-muted-foreground hover:text-foreground cursor-pointer font-bold focus:outline-none"
                   >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>

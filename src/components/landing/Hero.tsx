@@ -34,7 +34,7 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mt-6 text-lg sm:text-xl text-zinc-400 max-w-3xl leading-relaxed"
         >
-          Write scroll-stopping video scripts, repurpose your content for other platforms, audit your brand, and optimize audience retention—all in one place.
+          Write scroll-stopping video scripts, repurpose your content for other platforms, audit your brand, and optimize audience retention - all in one place.
         </motion.p>
 
         {/* CTAs */}

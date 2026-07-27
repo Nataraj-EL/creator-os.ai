@@ -92,7 +92,7 @@ const renderFormattedText = (text: string) => {
         return part;
       });
       return (
-        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-2.5">
+        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-2.5 last:mb-0">
           <span className="text-primary flex-shrink-0 select-none">•</span>
           <span className="flex-1">{parsedLine}</span>
         </div>
@@ -110,7 +110,7 @@ const renderFormattedText = (text: string) => {
         return part;
       });
       return (
-        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-2.5">
+        <div key={lineIdx} className="flex items-start gap-2 pl-4 min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-2.5 last:mb-0">
           <span className="text-primary font-bold flex-shrink-0 select-none">{numPrefix}</span>
           <span className="flex-1">{parsedLine}</span>
         </div>
@@ -125,7 +125,7 @@ const renderFormattedText = (text: string) => {
       return part;
     });
     return (
-      <div key={lineIdx} className="min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-3.5">
+      <div key={lineIdx} className="min-h-[1.5rem] text-left break-words whitespace-pre-wrap leading-relaxed text-foreground text-sm mb-3.5 last:mb-0">
         {parsedLine}
       </div>
     );
@@ -1205,17 +1205,17 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
                           rows={1}
                           value={editorTitle}
                           onChange={(e) => setEditorTitle(e.target.value)}
-                          className="bg-transparent border-b border-transparent hover:border-white/20 focus:border-cyan-500 focus:outline-none text-sm font-black text-white w-full py-0.5 transition-all resize-none overflow-hidden leading-snug"
+                          className="borderless-input bg-transparent border-b border-transparent focus:outline-none text-sm font-black text-foreground w-full py-0.5 transition-all resize-none overflow-hidden leading-snug"
                           placeholder="Untitled Project"
                         />
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] text-zinc-500 uppercase tracking-wider font-mono">
+                          <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-mono">
                             Status:
                           </span>
                           <select
                             value={editorStatus}
                             onChange={(e) => setEditorStatus(e.target.value)}
-                            className="bg-transparent text-[9px] text-zinc-400 hover:text-white font-bold cursor-pointer focus:outline-none"
+                            className="borderless-input bg-transparent text-[9px] text-muted-foreground hover:text-foreground font-bold cursor-pointer focus:outline-none"
                           >
                             <option value="DRAFT">DRAFT</option>
                             <option value="COMPLETED">COMPLETED</option>

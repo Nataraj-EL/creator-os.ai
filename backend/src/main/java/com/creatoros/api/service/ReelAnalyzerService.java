@@ -141,10 +141,15 @@ public class ReelAnalyzerService {
         // 3. Formulate title
         String title = "Instagram Reel";
         if (reelUrl != null && !reelUrl.trim().isEmpty()) {
-            Pattern pattern = Pattern.compile("/(reel|p|tv)/([a-zA-Z0-9_-]+)");
-            Matcher matcher = pattern.matcher(reelUrl);
-            if (matcher.find()) {
-                title = "Reel " + matcher.group(2);
+            String extractedTitle = generateTitleFromCaption(captionVal, null);
+            if (extractedTitle != null) {
+                title = extractedTitle;
+            } else {
+                Pattern pattern = Pattern.compile("/(reel|p|tv)/([a-zA-Z0-9_-]+)");
+                Matcher matcher = pattern.matcher(reelUrl);
+                if (matcher.find()) {
+                    title = "Reel " + matcher.group(2);
+                }
             }
         } else if (originalFilename != null) {
             title = originalFilename;
@@ -355,5 +360,71 @@ public class ReelAnalyzerService {
                 0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, (byte) 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
                 0x45, 0x4e, 0x44, (byte) 0xae, 0x42, 0x60, (byte) 0x82
         };
+    }
+
+    private String generateTitleFromCaption(String caption, String fallbackTitle) {
+        if (caption == null || caption.trim().isEmpty()) {
+            return fallbackTitle;
+        }
+        
+        // Clean up the caption: remove hashtags, mentions, links, emojis, and double spaces
+        String clean = caption.replaceAll("#\\w+", "")
+                             .replaceAll("@\\w+", "")
+                             .replaceAll("https?://\\S+", "")
+                             .replaceAll("[\\p{So}\\p{Cn}]", "") // Remove emojis
+                             .replaceAll("[\\s\\t\\n\\r]+", " ")
+                             .trim();
+                             
+        if (clean.isEmpty()) {
+            return fallbackTitle;
+        }
+        
+        // Find first sentence boundary or separator
+        int firstPeriod = clean.indexOf('.');
+        int firstLine = clean.indexOf('|');
+        int firstDash = clean.indexOf('-');
+        
+        int limit = clean.length();
+        if (firstPeriod > 5) limit = Math.min(limit, firstPeriod);
+        if (firstLine > 5) limit = Math.min(limit, firstLine);
+        if (firstDash > 5) limit = Math.min(limit, firstDash);
+        
+        String titleCandidate = clean.substring(0, limit).trim();
+        
+        // Split by words and take first 5-6 words
+        String[] words = titleCandidate.split("\\s+");
+        if (words.length > 5) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 5; i++) {
+                sb.append(words[i]).append(" ");
+            }
+            titleCandidate = sb.toString().trim();
+        }
+        
+        // If it's too short, use fallback
+        if (titleCandidate.length() < 4) {
+            return fallbackTitle;
+        }
+        
+        // Title-case formatting
+        StringBuilder titleCase = new StringBuilder();
+        boolean nextTitleCase = true;
+        for (char c : titleCandidate.toCharArray()) {
+            if (Character.isSpaceChar(c) || c == '-' || c == '_') {
+                nextTitleCase = true;
+                titleCase.append(c);
+            } else if (nextTitleCase) {
+                titleCase.append(Character.toUpperCase(c));
+                nextTitleCase = false;
+            } else {
+                titleCase.append(Character.toLowerCase(c));
+            }
+        }
+        
+        String finalTitle = titleCase.toString().trim();
+        // Remove trailing punctuation
+        finalTitle = finalTitle.replaceAll("[.,\\-_|\\s]+$", "");
+        
+        return finalTitle.isEmpty() ? fallbackTitle : finalTitle;
     }
 }

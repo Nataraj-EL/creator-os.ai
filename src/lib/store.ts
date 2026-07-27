@@ -17,13 +17,26 @@ if (typeof window !== 'undefined') {
       const parsed = JSON.parse(raw);
       const token = parsed.state?.accessToken;
       
-      // 1. Invalid JWT Auto-Cleanup
+      // 1. Invalid or Expired JWT Auto-Cleanup
       if (token) {
         const resemblesJwt = token.includes('.') && token.split('.').length === 3;
         const startsWithMock = token.startsWith('mock-google-access-token');
         
-        if (!resemblesJwt || startsWithMock) {
-          console.warn("Stale or invalid token detected during startup. Cleaning up auth storage...");
+        let isExpired = false;
+        if (resemblesJwt) {
+          try {
+            const parts = token.split('.');
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.exp && Date.now() >= payload.exp * 1000) {
+              isExpired = true;
+            }
+          } catch (e) {
+            isExpired = true;
+          }
+        }
+        
+        if (!resemblesJwt || startsWithMock || isExpired) {
+          console.warn("Stale, invalid, or expired token detected during startup. Cleaning up auth storage...");
           localStorage.removeItem('creatoros-auth-storage');
           
           // Delete auth cookie

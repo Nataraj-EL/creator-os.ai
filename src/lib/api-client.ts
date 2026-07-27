@@ -7,16 +7,66 @@ export const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
+const isTokenExpired = (token: string | null) => {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    // Decode base64 payload safely
+    const payload = JSON.parse(
+      typeof window !== 'undefined' 
+        ? atob(parts[1]) 
+        : Buffer.from(parts[1], 'base64').toString('utf-8')
+    );
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return true;
+  }
+};
+
 // Interceptor to inject tokens and trace IDs
 apiClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
     // Inject custom trace identifier for system logs
     const traceId = typeof window !== 'undefined' 
       ? ((window as any).__traceId || ((window as any).__traceId = crypto.randomUUID())) 
       : crypto.randomUUID();
     config.headers['X-Trace-Id'] = traceId;
 
-    const accessToken = useAuthStore.getState().accessToken;
+    let accessToken = useAuthStore.getState().accessToken;
+    const refreshToken = useAuthStore.getState().refreshToken;
+
+    // Proactively refresh the access token if it's expired and we are not calling auth endpoints
+    if (accessToken && isTokenExpired(accessToken) && !config.url?.includes('/auth/')) {
+      if (refreshToken && !isTokenExpired(refreshToken)) {
+        try {
+          const refreshResponse = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
+            refreshToken,
+          });
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken, user, workspaces } = refreshResponse.data;
+          useAuthStore.getState().setAuth(newAccessToken, newRefreshToken, user, workspaces);
+          accessToken = newAccessToken;
+        } catch (err) {
+          useAuthStore.getState().clearAuth();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('creatoros-auth-storage');
+            window.location.href = '/login';
+          }
+          return Promise.reject(err);
+        }
+      } else {
+        useAuthStore.getState().clearAuth();
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('creatoros-auth-storage');
+          window.location.href = '/login';
+        }
+        return Promise.reject(new Error("Refresh token expired or missing. Please login again."));
+      }
+    }
+
     if (accessToken) {
       config.headers['Authorization'] = `Bearer ${accessToken}`;
     }

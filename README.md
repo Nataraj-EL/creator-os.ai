@@ -11,7 +11,6 @@ CreatorOS centralizes content creation, growth intelligence, creator knowledge m
 - AI-Powered Content Studio
 - URL-Based Growth Advisor
 - Reel & Short-Form Analyzer
-- Creator Brain Twin
 - Knowledge Hub
 - Multi-Provider AI Routing
 - Workspace-Based Creator Management

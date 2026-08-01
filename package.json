@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:eval": "node --import tsx src/ai/evaluation/tests/evaluation.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",
@@ -30,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }

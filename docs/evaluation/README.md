@@ -63,6 +63,33 @@ Located in `src/ai/evaluation/config/featureFlags.ts`:
 
 ---
 
+## Concrete Provider: LLM-Judge (`LlmJudgeProvider`)
+
+The `LlmJudgeProvider` executes real-time evaluation of generated draft outputs against requested criteria using a model-agnostic LLM interface.
+
+### 1. Evaluated Metrics
+The provider prompts the configured LLM to score the following metrics on a **0 to 10 scale** (internally mapped and normalized to a **0 to 100 scale** for DB schemas):
+* **Relevance** (Weight: 15%): Does the output directly cover requested topic elements?
+* **Faithfulness** (Weight: 15%): Is the content logically accurate and hallucination-free?
+* **Creator Voice** (Weight: 20%): Does the pacing/tone align with the creator's brand persona?
+* **Platform Suitability** (Weight: 15%): Is the format optimized for target platform limits?
+* **Engagement** (Weight: 15%): Strong visual hooks, pacing transitions, CTAs.
+* **Readability** (Weight: 10%): Syntactic flow, grammar, vocabulary accessibility.
+* **Actionability** (Weight: 10%): CTA clarity, user guidance.
+
+### 2. Error Mitigation & Resiliency
+To ensure high availability, the judge provider incorporates:
+* **Missing Credentials Check**: Throws a typed `ProviderError` directly if API keys or settings are missing.
+* **Backoff Retry Engine**: Retries up to **3 times** with **exponential backoff** (delaying by `500ms * 2^attempt`) on malformed JSON parsing, transient API timeouts (HTTP 5xx), or rate limits (HTTP 429).
+
+### 3. Output Metadata Enriched
+Evaluations return metadata records mapping audit parameters:
+* `judgeModel`: Dynamically resolved model identifier.
+* `judgePromptVersion`: Template version (`1.0.0`) imported from `prompts/generationJudge.ts`.
+* `evaluationVersion`: Static platform code version (`v1`).
+
+---
+
 ## Usage Guide (Future Integration Example)
 
 ```typescript

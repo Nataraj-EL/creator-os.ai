@@ -224,7 +224,7 @@ export default function RegisterPage() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/[0.06]"></div>
             </div>
-            <span className="relative px-3 bg-[#0a0f19] text-[10px] text-zinc-500 uppercase tracking-wider">Or register with email</span>
+            <span className="relative px-3 bg-zinc-950 text-[10px] text-zinc-500 uppercase tracking-wider">Or register with email</span>
           </div>
 
           {error && (

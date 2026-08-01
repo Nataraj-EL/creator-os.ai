@@ -256,7 +256,7 @@ export default function ReelAnalyzerPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] max-w-7xl mx-auto space-y-6">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-6rem)] max-w-7xl mx-auto space-y-6">
       
       {/* Toast Notification Popups */}
       <div className="fixed top-20 right-6 z-50 flex flex-col gap-2">
@@ -299,10 +299,10 @@ export default function ReelAnalyzerPage() {
       </div>
 
       {/* Main Container Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-auto lg:h-full items-stretch overflow-hidden">
         
         {/* LEFT COLUMN: Upload Zone + Previous Analyses History (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-hidden">
+        <div className="lg:col-span-4 flex flex-col gap-6 h-auto lg:h-full overflow-hidden">
           
           {/* Input Mode Selector */}
           <div className="flex bg-[#0a0a0c]/60 p-1 rounded-xl border border-white/5 flex-shrink-0">
@@ -452,7 +452,7 @@ export default function ReelAnalyzerPage() {
         </div>
 
         {/* RIGHT COLUMN: Active Analysis Dashboard / Onboarding Upload Block (8 cols) */}
-        <div className="lg:col-span-8 flex flex-col h-full overflow-hidden relative">
+        <div className="lg:col-span-8 flex flex-col h-auto lg:h-full overflow-hidden relative">
           
           <AnimatePresence mode="wait">
             

@@ -269,7 +269,7 @@ export default function KnowledgeBrainPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] max-w-7xl mx-auto space-y-6">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-6rem)] max-w-7xl mx-auto space-y-6">
       
       {/* Toast Notification Container */}
       <div className="fixed top-20 right-6 z-50 flex flex-col gap-2">
@@ -308,10 +308,10 @@ export default function KnowledgeBrainPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-auto lg:h-full items-stretch overflow-hidden">
         
         {/* LEFT COLUMN: Upload + Library List */}
-        <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-hidden">
+        <div className="lg:col-span-4 flex flex-col gap-6 h-auto lg:h-full overflow-hidden">
           
           {/* Upload Drop Zone */}
           <div
@@ -412,7 +412,7 @@ export default function KnowledgeBrainPage() {
         </div>
 
         {/* RIGHT COLUMN: Document Viewer / Empty Onboarding State */}
-        <div className="lg:col-span-8 flex flex-col h-full overflow-hidden relative">
+        <div className="lg:col-span-8 flex flex-col h-auto lg:h-full overflow-hidden relative">
           
           <AnimatePresence mode="wait">
             

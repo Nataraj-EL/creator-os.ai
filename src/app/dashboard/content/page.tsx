@@ -877,7 +877,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
   const ctaVariants = selectedProject?.variants.filter(v => v.variantType === 'CTA') || [];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] max-w-7xl mx-auto space-y-6">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-6rem)] max-w-7xl mx-auto space-y-6">
       
       {/* Toast Notification Container */}
       <div className="fixed top-20 right-6 z-50 flex flex-col gap-2">
@@ -933,10 +933,10 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
 
       {activeTool === 'scriptwriter' ? (
         /* Main Studio Body Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-auto lg:h-full items-stretch">
 
         {/* LEFT COLUMN: Sidebar list (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col h-full overflow-hidden">
+        <div className="lg:col-span-4 flex flex-col h-auto lg:h-full overflow-hidden">
           
           {/* Project List Sidebar Panel */}
           <div className="glass-card rounded-2xl border border-border flex flex-col flex-1 overflow-hidden bg-card/10">
@@ -1088,7 +1088,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
         </div>
 
         {/* RIGHT COLUMN: Studio Canvas or Onboarding Input (8 cols) */}
-        <div className="lg:col-span-8 flex flex-col h-full overflow-hidden">
+        <div className="lg:col-span-8 flex flex-col h-auto lg:h-full overflow-hidden">
           
           <AnimatePresence mode="wait">
             
@@ -1523,9 +1523,9 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
       </div>
       ) : (
         /* Content Repurposer Tool Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-stretch w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-auto lg:h-full items-stretch w-full">
           {/* Form Input Side */}
-          <div className="lg:col-span-5 flex flex-col h-full overflow-hidden">
+          <div className="lg:col-span-5 flex flex-col h-auto lg:h-full overflow-hidden">
             <div className="glass-card rounded-2xl border border-white/5 p-6 flex flex-col space-y-4 bg-card/10 h-full overflow-y-auto custom-scrollbar">
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Repurpose Content</h3>
@@ -1591,7 +1591,7 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
           </div>
 
           {/* Outputs Display Side */}
-          <div className="lg:col-span-7 flex flex-col h-full overflow-hidden">
+          <div className="lg:col-span-7 flex flex-col h-auto lg:h-full overflow-hidden">
             <div className="glass-card rounded-2xl border border-white/5 p-6 flex flex-col bg-card/10 h-full overflow-y-auto custom-scrollbar space-y-5">
               
               {!repurposeResult && !repurposing && (

@@ -305,8 +305,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Mobile Slide-out Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm">
-            <div className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border p-4 space-y-6 z-40">
+          <div 
+            className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <div 
+              className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border p-4 space-y-6 z-40"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between px-3 border-b border-border pb-4">
                 <BrandLogo size={28} showBg={true} textSize="text-md" />
                 <button 

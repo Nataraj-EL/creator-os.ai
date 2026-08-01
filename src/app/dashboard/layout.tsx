@@ -301,6 +301,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               );
             })}
           </nav>
+
+          {/* Developer Tools */}
+          {(user?.role === 'ADMIN' || user?.role === 'CREATOR' || user?.role === 'developer') && (
+            <div className="pt-4 border-t border-white/5 mt-4 space-y-3">
+              <div className="px-3">
+                <span className="text-[10px] font-bold tracking-wider text-red-400 uppercase">Developer Tools</span>
+              </div>
+              <Link
+                href="/dashboard/evaluation"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  pathname === '/dashboard/evaluation'
+                    ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 text-cyan-400 border border-cyan-500/20' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30 border border-transparent'
+                }`}
+              >
+                <Database className={`h-4.5 w-4.5 ${pathname === '/dashboard/evaluation' ? 'text-cyan-400' : 'text-zinc-500'}`} />
+                <span>Eval Console</span>
+              </Link>
+            </div>
+          )}
         </aside>
 
         {/* Mobile Slide-out Menu */}
@@ -343,6 +363,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   );
                 })}
               </nav>
+
+              {/* Developer Tools */}
+              {(user?.role === 'ADMIN' || user?.role === 'CREATOR' || user?.role === 'developer') && (
+                <div className="pt-4 border-t border-white/5 mt-4 space-y-3">
+                  <div className="px-3">
+                    <span className="text-[10px] font-bold tracking-wider text-red-400 uppercase">Developer Tools</span>
+                  </div>
+                  <Link
+                    href="/dashboard/evaluation"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      pathname === '/dashboard/evaluation'
+                        ? 'bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 text-cyan-400 border border-cyan-500/20' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30 border border-transparent'
+                    }`}
+                  >
+                    <Database className={`h-4.5 w-4.5 ${pathname === '/dashboard/evaluation' ? 'text-cyan-400' : 'text-zinc-500'}`} />
+                    <span>Eval Console</span>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

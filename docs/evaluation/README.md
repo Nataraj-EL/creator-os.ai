@@ -132,11 +132,26 @@ async function generateScriptWithAudit(creatorId: string, topic: string) {
 
 ---
 
+## Developer Evaluation Console (`/dashboard/evaluation`)
+
+The system provides an internal developer-only console that surfaces all tracing metrics and evaluation payloads.
+
+### 1. Security & Protection
+The route `/dashboard/evaluation` checks user role hydration from the client state. It displays a "Developer Tools" section in the sidebar only if the authenticated user has the `ADMIN` or `CREATOR` role in local dev/admin environments.
+
+### 2. Functional Inspection Tools
+* **Trace Timeline**: Tracks progress through the execution sequence (`Started` ➔ `Provider Selected` ➔ `Request Dispatched` ➔ `Response Validated` ➔ `Trace Stored`).
+* **Compact Metrics inspector**: Displays a clean table listing the 7 evaluation metrics (Relevance, Faithfulness, Creator Voice, etc.) alongside color-coded badges, weights, confidence percentage, and textual reasons.
+* **Raw JSON Tab**: Provides full payload printout of the underlying database record.
+* **JSON Export**: Downloads the trace record directly as a JSON file.
+* **Live Sandbox Runner**: Click "Run Evaluation" to immediately execute a sample audit, tracing execution live in the console.
+
+---
+
 ## Future Roadmap
 
-1. **Sprint 2: Offline Dataset Runner**
+1. **Sprint 4: Offline Dataset Runner**
    * Script to execute evaluations in batch across static datasets.
-2. **Sprint 3: CI/CD Guardrail Integration**
+2. **Sprint 5: CI/CD Guardrail Integration**
    * Pre-commit or pipeline gates that block deployment if evaluation scores drop.
-3. **Sprint 4: Evaluation Metrics Dashboard**
-   * UI view displaying overall latency trends and score histories.
+

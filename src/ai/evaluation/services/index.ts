@@ -12,6 +12,7 @@ import { featureFlags } from '../config/featureFlags';
 import { evaluationRegistry } from '../providers';
 import { DefaultEvaluationLogger } from '../utils/logger';
 import { ProviderError } from '../utils/errors';
+import { EvaluationRepositoryFactory } from '../storage/repositoryFactory';
 
 export class DefaultEvaluationService implements IEvaluationService {
   private registry = evaluationRegistry;
@@ -20,7 +21,7 @@ export class DefaultEvaluationService implements IEvaluationService {
 
   constructor(logger?: EvaluationLogger, repository?: EvaluationRepository) {
     this.logger = logger || new DefaultEvaluationLogger();
-    this.repository = repository;
+    this.repository = repository || EvaluationRepositoryFactory.getRepository();
   }
 
   private isStageEnabled(stage: EvaluationStage): boolean {

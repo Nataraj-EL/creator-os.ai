@@ -26,7 +26,8 @@
     "test:hitl": "node --import tsx src/ai/agent/hitl/tests/runtime.test.ts",
     "test:multiagent": "node --import tsx src/ai/multiagent/tests/runtime.test.ts",
     "test:knowledge-graph": "node --import tsx src/ai/graph/tests/runtime.test.ts",
-    "test:workflow": "node --import tsx src/ai/workflow/tests/runtime.test.ts"
+    "test:workflow": "node --import tsx src/ai/workflow/tests/runtime.test.ts",
+    "test:mcp": "node --import tsx src/ai/mcp/tests/runtime.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

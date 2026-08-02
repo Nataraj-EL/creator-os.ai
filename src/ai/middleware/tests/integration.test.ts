@@ -54,11 +54,11 @@ test('AI Generation Middleware Integration Suite', async (t) => {
     featureFlags.GENERATION_EVAL = false;
 
     let providerCalled = false;
-    const defaultProvider = evaluationRegistry.defaultProvider();
-    const originalEvaluateProvider = defaultProvider.evaluate;
+    const defaultProvider = evaluationRegistry.defaultProvider() as any;
+    const originalEvaluateProvider = defaultProvider.execute;
     
-    // Spy on the active provider evaluate call
-    defaultProvider.evaluate = async () => {
+    // Spy on the active provider execute call
+    defaultProvider.execute = async () => {
       providerCalled = true;
       return { status: EvaluationStatus.COMPLETED } as any;
     };
@@ -73,7 +73,7 @@ test('AI Generation Middleware Integration Suite', async (t) => {
     await new Promise(r => setTimeout(r, 20));
     
     // Restore provider method
-    defaultProvider.evaluate = originalEvaluateProvider;
+    defaultProvider.execute = originalEvaluateProvider;
 
     assert.strictEqual(providerCalled, false);
   });

@@ -147,7 +147,7 @@ test('AI Evaluation Platform Suite', async (t) => {
           status: 200,
           text: async () => 'Malformed JSON text output',
           json: async () => { throw new Error('JSON Parse Error'); }
-        } as Response;
+        } as unknown as Response;
       } else {
         // Return successful response on second try
         return {
@@ -155,7 +155,7 @@ test('AI Evaluation Platform Suite', async (t) => {
           status: 200,
           text: async () => JSON.stringify(mockSuccessResponse),
           json: async () => mockSuccessResponse
-        } as Response;
+        } as unknown as Response;
       }
     }) as any;
 
@@ -191,7 +191,7 @@ test('AI Evaluation Platform Suite', async (t) => {
         status: 200,
         text: async () => 'Totally invalid output',
         json: async () => { throw new Error('Bad format'); }
-      } as Response;
+      } as unknown as Response;
     }) as any;
 
     const context = {

@@ -15,6 +15,7 @@ import { MemoryRuntime } from '../ai/memory/services';
 import { memoryProviderRegistry } from '../ai/memory/providers';
 import { MemoryRepositoryFactory } from '../ai/memory/storage/repositoryFactory';
 import { PromptBuilder, promptFeatureFlags } from '../ai/prompt';
+import { RetrievalService } from '../ai/retrieval';
 
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
@@ -45,7 +46,8 @@ function getContextAssemblyRuntime(): ContextAssemblyRuntime {
   if (!contextAssemblyRuntimeInstance) {
     const memoryRepo = MemoryRepositoryFactory.getRepository();
     const memoryRuntime = new MemoryRuntime(memoryProviderRegistry, memoryRepo);
-    contextAssemblyRuntimeInstance = new ContextAssemblyRuntime(memoryRuntime);
+    const retrievalService = new RetrievalService();
+    contextAssemblyRuntimeInstance = new ContextAssemblyRuntime(memoryRuntime, undefined, undefined, retrievalService);
   }
   return contextAssemblyRuntimeInstance;
 }

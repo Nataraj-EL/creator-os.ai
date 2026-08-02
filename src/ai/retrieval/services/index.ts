@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { retrievalProviderRegistry, vectorStoreRegistry } from '../providers/registry';
 import { retrievalFeatureFlags } from '../config/featureFlags';
+import { traceEventBus } from '../../observability';
 
 export class EmbeddingService {
   private listeners: Set<RetrievalLifecycleListener> = new Set();
@@ -112,12 +113,29 @@ export class RetrievalService implements RetrievalSearchService {
   }
 
   public async semanticSearch(query: RetrievalQuery): Promise<RetrievalResult[]> {
+    traceEventBus.publish({
+      traceId: query.metadataFilters?.traceId || '',
+      requestId: query.metadataFilters?.requestId || '',
+      stage: 'retrieval',
+      component: 'RetrievalService',
+      status: 'started',
+      metadata: { textLength: query.text.length, topK: query.topK }
+    });
+
     const startTime = Date.now();
     this.emitEvent('SEARCH_STARTED', { text: query.text, mode: 'semantic' });
 
     if (!retrievalFeatureFlags.SEMANTIC_RETRIEVAL) {
       console.warn("[AI-RETRIEVE] Semantic search skipped: disabled by feature flags.");
       this.emitEvent('SEARCH_COMPLETED', { mode: 'semantic', resultsCount: 0 });
+      traceEventBus.publish({
+        traceId: query.metadataFilters?.traceId || '',
+        requestId: query.metadataFilters?.requestId || '',
+        stage: 'retrieval',
+        component: 'RetrievalService',
+        status: 'completed',
+        metadata: { mode: 'semantic', resultsCount: 0, reason: 'Disabled by feature flags.' }
+      });
       return [];
     }
 
@@ -172,16 +190,43 @@ export class RetrievalService implements RetrievalSearchService {
     });
 
     this.emitEvent('SEARCH_COMPLETED', { mode: 'semantic', resultsCount: results.length, latency });
+
+    traceEventBus.publish({
+      traceId: query.metadataFilters?.traceId || '',
+      requestId: query.metadataFilters?.requestId || '',
+      stage: 'retrieval',
+      component: 'RetrievalService',
+      status: 'completed',
+      metadata: { mode: 'semantic', resultsCount: results.length }
+    });
+
     return results;
   }
 
   public async hybridSearch(query: RetrievalQuery, strategy?: HybridRankingStrategy): Promise<RetrievalResult[]> {
+    traceEventBus.publish({
+      traceId: query.metadataFilters?.traceId || '',
+      requestId: query.metadataFilters?.requestId || '',
+      stage: 'retrieval',
+      component: 'RetrievalService',
+      status: 'started',
+      metadata: { textLength: query.text.length, topK: query.topK }
+    });
+
     const startTime = Date.now();
     this.emitEvent('SEARCH_STARTED', { text: query.text, mode: 'hybrid' });
 
     if (!retrievalFeatureFlags.HYBRID_RETRIEVAL) {
       console.warn("[AI-RETRIEVE] Hybrid search skipped: disabled by feature flags.");
       this.emitEvent('SEARCH_COMPLETED', { mode: 'hybrid', resultsCount: 0 });
+      traceEventBus.publish({
+        traceId: query.metadataFilters?.traceId || '',
+        requestId: query.metadataFilters?.requestId || '',
+        stage: 'retrieval',
+        component: 'RetrievalService',
+        status: 'completed',
+        metadata: { mode: 'hybrid', resultsCount: 0, reason: 'Disabled by feature flags.' }
+      });
       return [];
     }
 
@@ -257,6 +302,16 @@ export class RetrievalService implements RetrievalSearchService {
     const sliced = results.slice(0, topK);
 
     this.emitEvent('SEARCH_COMPLETED', { mode: 'hybrid', resultsCount: sliced.length, latency });
+
+    traceEventBus.publish({
+      traceId: query.metadataFilters?.traceId || '',
+      requestId: query.metadataFilters?.requestId || '',
+      stage: 'retrieval',
+      component: 'RetrievalService',
+      status: 'completed',
+      metadata: { mode: 'hybrid', resultsCount: sliced.length }
+    });
+
     return sliced;
   }
 }

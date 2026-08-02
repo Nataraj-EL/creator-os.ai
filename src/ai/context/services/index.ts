@@ -18,6 +18,7 @@ import { contextFeatureFlags } from '../config/featureFlags';
 import { RetrievalSearchService } from '../../retrieval/types';
 import { retrievalFeatureFlags } from '../../retrieval/config/featureFlags';
 import { RetrievalAdapter } from './retrievalAdapter';
+import { traceEventBus } from '../../observability';
 
 export class ContextAssemblyRuntime implements ContextAssemblyService {
   private memoryService: MemoryService;
@@ -77,6 +78,15 @@ export class ContextAssemblyRuntime implements ContextAssemblyService {
     const requestId = request.metadata?.requestId || `req-ctx-${Math.random().toString(36).substring(2, 9)}`;
     const targetBudget = request.tokenBudget || 2000;
     const selectedStrategy = request.strategy || ContextStrategy.BALANCED;
+
+    traceEventBus.publish({
+      traceId: request.metadata?.traceId || '',
+      requestId: requestId || '',
+      stage: 'context',
+      component: 'ContextAssemblyRuntime',
+      status: 'started',
+      metadata: { strategy: selectedStrategy, tokenBudget: targetBudget }
+    });
 
     this.emitEvent('ASSEMBLY_STARTED', requestId, { strategy: selectedStrategy, budget: targetBudget });
 
@@ -200,6 +210,16 @@ export class ContextAssemblyRuntime implements ContextAssemblyService {
     };
 
     this.emitEvent('ASSEMBLY_COMPLETED', requestId, { blocksCount: blocks.length, totalTokens });
+
+    traceEventBus.publish({
+      traceId: request.metadata?.traceId || '',
+      requestId: requestId || '',
+      stage: 'context',
+      component: 'ContextAssemblyRuntime',
+      status: 'completed',
+      metadata: { blocksCount: result.blocks.length, totalTokens: result.totalTokens }
+    });
+
     return result;
   }
 }

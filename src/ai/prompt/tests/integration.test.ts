@@ -43,7 +43,7 @@ test('AI Prompt Context-Aware Integration Suite', async (t) => {
     memoryProviderRegistry.clear();
     memoryProviderRegistry.register(provider);
 
-    apiClient.post = async (url: string, data?: any, config?: any) => {
+    (apiClient as any).post = async (url: string, data?: any, config?: any) => {
       lastPostPayload = data;
       return {
         data: {

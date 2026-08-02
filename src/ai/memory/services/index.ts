@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { MemoryProviderRegistry } from '../providers';
 import { memoryFeatureFlags } from '../config/featureFlags';
+import { traceEventBus } from '../../observability';
 
 export class MemoryRuntime implements MemoryService {
   private registry: MemoryProviderRegistry;
@@ -66,8 +67,25 @@ export class MemoryRuntime implements MemoryService {
       metadata?: Record<string, any>;
     }
   ): Promise<MemoryRecord | null> {
+    traceEventBus.publish({
+      traceId: context.sessionId || '',
+      requestId: context.requestId || '',
+      stage: 'memory-runtime',
+      component: 'MemoryRuntime',
+      status: 'started',
+      metadata: { operation: 'store', type }
+    });
+
     if (!memoryFeatureFlags.MEMORY_ENABLED || !memoryFeatureFlags.MEMORY_WRITE) {
       console.warn("[AI-MEM] Store skipped: Memory write features disabled by feature flags.");
+      traceEventBus.publish({
+        traceId: context.sessionId || '',
+        requestId: context.requestId || '',
+        stage: 'memory-runtime',
+        component: 'MemoryRuntime',
+        status: 'failed',
+        metadata: { reason: 'Disabled by feature flags.' }
+      });
       return null;
     }
 
@@ -101,6 +119,16 @@ export class MemoryRuntime implements MemoryService {
     }
 
     this.emitEvent('STORE', context, { recordId: record.id, type, tagsCount: tags.length });
+
+    traceEventBus.publish({
+      traceId: context.sessionId || '',
+      requestId: context.requestId || '',
+      stage: 'memory-runtime',
+      component: 'MemoryRuntime',
+      status: 'completed',
+      metadata: { operation: 'store', type, recordId: record.id }
+    });
+
     return record;
   }
 
@@ -199,8 +227,25 @@ export class MemoryRuntime implements MemoryService {
 
   // 5. Search memories (relevance-ranked result lists)
   public async search(context: MemoryContext, query: Omit<MemoryQuery, 'creatorId'>): Promise<MemoryRecord[]> {
+    traceEventBus.publish({
+      traceId: context.sessionId || '',
+      requestId: context.requestId || '',
+      stage: 'memory-runtime',
+      component: 'MemoryRuntime',
+      status: 'started',
+      metadata: { operation: 'search', queryText: query.text }
+    });
+
     if (!memoryFeatureFlags.MEMORY_ENABLED || !memoryFeatureFlags.MEMORY_READ) {
       console.warn("[AI-MEM] Search skipped: Memory read features disabled by feature flags.");
+      traceEventBus.publish({
+        traceId: context.sessionId || '',
+        requestId: context.requestId || '',
+        stage: 'memory-runtime',
+        component: 'MemoryRuntime',
+        status: 'completed',
+        metadata: { operation: 'search', resultsCount: 0 }
+      });
       return [];
     }
 
@@ -230,6 +275,15 @@ export class MemoryRuntime implements MemoryService {
       tagsCount: query.tags?.length || 0,
       resultsCount: rankedResults.length,
       retrievedIds: rankedResults.map(r => r.id)
+    });
+
+    traceEventBus.publish({
+      traceId: context.sessionId || '',
+      requestId: context.requestId || '',
+      stage: 'memory-runtime',
+      component: 'MemoryRuntime',
+      status: 'completed',
+      metadata: { operation: 'search', resultsCount: rankedResults.length }
     });
 
     return rankedResults;

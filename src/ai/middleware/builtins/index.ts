@@ -7,6 +7,7 @@ import {
   MiddlewareMetadata 
 } from '../types';
 import { EvaluationService } from '../../evaluation/types';
+import { traceEventBus } from '../../observability';
 
 // 1. Trace Middleware
 export class TraceMiddleware implements AIMiddleware {
@@ -24,6 +25,37 @@ export class TraceMiddleware implements AIMiddleware {
     if (!context.traceId) {
       context.traceId = `trace-mw-${Math.random().toString(36).substring(2, 9)}`;
     }
+
+    traceEventBus.publish({
+      traceId: context.traceId,
+      requestId: context.requestId,
+      stage: 'middleware',
+      component: 'TraceMiddleware',
+      status: 'started',
+      metadata: { model: request.model, provider: request.provider }
+    });
+  }
+
+  public after(context: AIContext, request: AIRequest, response: AIResponse): void {
+    traceEventBus.publish({
+      traceId: context.traceId || '',
+      requestId: context.requestId || '',
+      stage: 'middleware',
+      component: 'TraceMiddleware',
+      status: 'completed',
+      metadata: {}
+    });
+  }
+
+  public onError(context: AIContext, request: AIRequest, error: Error): void {
+    traceEventBus.publish({
+      traceId: context.traceId || '',
+      requestId: context.requestId || '',
+      stage: 'middleware',
+      component: 'TraceMiddleware',
+      status: 'failed',
+      metadata: { error: error.message }
+    });
   }
 }
 

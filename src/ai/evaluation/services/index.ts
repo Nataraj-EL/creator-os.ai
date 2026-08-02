@@ -13,6 +13,7 @@ import { evaluationRegistry } from '../providers';
 import { DefaultEvaluationLogger } from '../utils/logger';
 import { ProviderError } from '../utils/errors';
 import { EvaluationRepositoryFactory } from '../storage/repositoryFactory';
+import { traceEventBus } from '../../observability';
 
 export class DefaultEvaluationService implements IEvaluationService {
   private registry = evaluationRegistry;
@@ -43,6 +44,15 @@ export class DefaultEvaluationService implements IEvaluationService {
 
   public async evaluate(context: EvaluationContext, config?: EvaluationConfig): Promise<EvaluationResult> {
     const startTime = Date.now();
+
+    traceEventBus.publish({
+      traceId: context.sessionId || '',
+      requestId: context.requestId || '',
+      stage: 'evaluation',
+      component: 'EvaluationService',
+      status: 'started',
+      metadata: { stage: context.stage, provider: context.provider }
+    });
 
     // Check if stage is enabled
     if (!this.isStageEnabled(context.stage)) {
@@ -95,6 +105,15 @@ export class DefaultEvaluationService implements IEvaluationService {
         });
       }
 
+      traceEventBus.publish({
+        traceId: context.sessionId || '',
+        requestId: context.requestId || '',
+        stage: 'evaluation',
+        component: 'EvaluationService',
+        status: 'completed',
+        metadata: { status: enrichedResult.status, overallScore: enrichedResult.overallScore }
+      });
+
       return enrichedResult;
 
     } catch (err: any) {
@@ -115,6 +134,15 @@ export class DefaultEvaluationService implements IEvaluationService {
       if (this.repository) {
         await this.repository.save(failedResult).catch(() => {});
       }
+
+      traceEventBus.publish({
+        traceId: context.sessionId || '',
+        requestId: context.requestId || '',
+        stage: 'evaluation',
+        component: 'EvaluationService',
+        status: 'failed',
+        metadata: { error: err.message || 'Evaluation execution failure.' }
+      });
 
       return failedResult;
     }

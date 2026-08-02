@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { MemoryExtractor } from '../extractor';
 import { MemoryContext } from '../../types';
+import { traceEventBus } from '../../../observability';
 
 export class DefaultMemoryLearningDispatcher implements MemoryLearningDispatcher {
   public dispatch(task: () => Promise<void>): void {
@@ -96,6 +97,15 @@ export class DefaultMemoryLearningService implements MemoryLearningService {
       if (first !== undefined) this.processedIds.delete(first);
     }
 
+    traceEventBus.publish({
+      traceId: context.sessionId || '',
+      requestId: context.requestId || '',
+      stage: 'memory-learning',
+      component: 'MemoryLearningService',
+      status: 'started',
+      metadata: { promptLength: prompt.length, contentLength: content.length }
+    });
+
     // Execute asynchronously via dispatcher (fire-and-forget background queue logic)
     const resultsPromise: Promise<MemoryExtractionResult[]> = new Promise((resolve, reject) => {
       this.dispatcher.dispatch(async () => {
@@ -140,9 +150,28 @@ export class DefaultMemoryLearningService implements MemoryLearningService {
             storedMemoryContents
           });
 
+          traceEventBus.publish({
+            traceId: context.sessionId || '',
+            requestId: context.requestId || '',
+            stage: 'memory-learning',
+            component: 'MemoryLearningService',
+            status: 'completed',
+            metadata: { resultsCount: results.length }
+          });
+
           resolve(results);
         } catch (err: any) {
           this.emitEvent('MEMORY_LEARNING_FAILED', context, { error: err.message });
+          
+          traceEventBus.publish({
+            traceId: context.sessionId || '',
+            requestId: context.requestId || '',
+            stage: 'memory-learning',
+            component: 'MemoryLearningService',
+            status: 'failed',
+            metadata: { error: err.message }
+          });
+
           reject(err);
         }
       });

@@ -1,4 +1,5 @@
 import { ContextResult } from '../context/types';
+import { traceEventBus } from '../observability';
 
 export interface PromptPackage {
   systemInstructions: string;
@@ -26,6 +27,15 @@ export class PromptBuilder {
     const contextBlocks = contextResult.blocks.map(block => {
       const reasonTag = block.selectionReason ? ` [Reason: ${block.selectionReason}]` : '';
       return `[Source: ${block.source} | ID: ${block.id}]${reasonTag}\n${block.content}`;
+    });
+
+    traceEventBus.publish({
+      traceId: contextResult.metadata?.traceId || '',
+      requestId: contextResult.requestId || '',
+      stage: 'prompt-builder',
+      component: 'PromptBuilder',
+      status: 'completed',
+      metadata: { promptVersion, strategy: contextResult.strategy, blocksCount: contextResult.blocks.length }
     });
 
     return {

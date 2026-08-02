@@ -12,6 +12,14 @@ import { evaluationService } from '../ai/evaluation/services';
 import { AIRequest, AIResponse, AIHandler, AIContext } from '../ai/middleware/types';
 import { featureFlags } from '../ai/evaluation/config/featureFlags';
 import { experimentService } from '../ai/evaluation/runtime';
+import { 
+  featureFlags as providerFeatureFlags,
+  providerResolver,
+  providerRegistry,
+  ExponentialBackoffRetryPolicy,
+  DefaultTimeoutPolicy,
+  ProviderRuntime
+} from '../ai/providers';
 
 import { ContextAssemblyRuntime } from '../ai/context/services';
 import { MemoryRuntime } from '../ai/memory/services';
@@ -125,35 +133,84 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       }
     }
 
-    // Propagate ID arrays, prompt version, variantId, and contextBlocks to shared context metadata
-    context.metadata = {
-      ...context.metadata,
-      selectedMemoryIds,
-      promptVersion,
-      variantId,
-      contextBlocks: contextResult ? contextResult.blocks : []
-    };
+    let responseData: any;
 
-    // Outbound API request to backend generation endpoint
-    const response = await apiClient.post(
-      `/api/v1/workspaces/${request.workspaceId}/content`, 
-      {
-        title: request.title,
-        topic: finalTopic, // Transformed payload!
-        primaryGoal: request.primaryGoal
-      },
-      config
-    );
+    if (providerFeatureFlags.PROVIDERS_ENABLED) {
+      const provider = providerResolver.resolve(request.provider);
+      const retryPolicy = new ExponentialBackoffRetryPolicy(
+        3, 
+        100, 
+        2, 
+        providerFeatureFlags.RETRY_ENABLED
+      );
+      const timeoutPolicy = new DefaultTimeoutPolicy(5000);
+      const runtime = new ProviderRuntime(providerRegistry, retryPolicy, timeoutPolicy);
+
+      const providerRequest = {
+        prompt: finalTopic,
+        model: request.model,
+        signal: (request as any).signal,
+        metadata: {
+          workspaceId: request.workspaceId,
+          title: request.title,
+          primaryGoal: request.primaryGoal
+        }
+      };
+
+      const providerResponse = await runtime.generate(provider, providerRequest);
+
+      // Automatically append provider, model, version, latency, and retryCount to trace metadata
+      context.metadata = {
+        ...context.metadata,
+        selectedMemoryIds,
+        promptVersion,
+        variantId,
+        contextBlocks: contextResult ? contextResult.blocks : [],
+        provider: provider.name,
+        model: providerResponse.model,
+        version: '1.0.0',
+        latencyMs: providerResponse.latencyMs,
+        retryCount: providerResponse.retryCount
+      };
+
+      responseData = {
+        scriptDraft: providerResponse.content,
+        generatedContent: providerResponse.content,
+        content: providerResponse.content,
+        metadata: providerResponse.metadata
+      };
+    } else {
+      // Propagate ID arrays, prompt version, variantId, and contextBlocks to shared context metadata
+      context.metadata = {
+        ...context.metadata,
+        selectedMemoryIds,
+        promptVersion,
+        variantId,
+        contextBlocks: contextResult ? contextResult.blocks : []
+      };
+
+      // Outbound API request to backend generation endpoint
+      const apiResponse = await apiClient.post(
+        `/api/v1/workspaces/${request.workspaceId}/content`, 
+        {
+          title: request.title,
+          topic: finalTopic, // Transformed payload!
+          primaryGoal: request.primaryGoal
+        },
+        config
+      );
+      responseData = apiResponse.data;
+    }
 
     // Map content for EvaluationMiddleware ingestion
-    const rawContent = response.data?.scriptDraft || 
-                       response.data?.generatedContent || 
-                       response.data?.content || 
-                       JSON.stringify(response.data);
+    const rawContent = responseData?.scriptDraft || 
+                       responseData?.generatedContent || 
+                       responseData?.content || 
+                       JSON.stringify(responseData);
 
     return {
       content: rawContent,
-      data: response.data
+      data: responseData
     };
   }
 }

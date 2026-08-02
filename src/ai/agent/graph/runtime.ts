@@ -11,6 +11,7 @@ import {
   GraphLifecycleEventType, 
   GraphLifecycleListener 
 } from './types';
+import { featureFlags as hitlFeatureFlags } from '../hitl/config/featureFlags';
 
 export class AgentGraphRuntime {
   private listeners: Set<GraphLifecycleListener> = new Set();
@@ -56,7 +57,13 @@ export class AgentGraphRuntime {
   public async run(
     graph: AgentGraph,
     context: AgentContext,
-    options?: { maxIterations?: number }
+    options?: { 
+      maxIterations?: number;
+      hitlRuntime?: any;
+      decision?: any;
+      resumeCheckpointId?: string;
+      resumeToken?: string;
+    }
   ): Promise<GraphExecutionState> {
     const startTime = Date.now();
     const maxIterations = options?.maxIterations || 10;
@@ -69,12 +76,38 @@ export class AgentGraphRuntime {
       loopCount: 0
     };
 
-    this.emitEvent('GRAPH_STARTED', context, metrics, graph.startNodeId);
-
     let currentNodeId = graph.startNodeId;
     let status: GraphExecutionStatus = 'RUNNING';
-
     const visitCounts: Record<string, number> = {};
+
+    let isResumingFirstNode = false;
+    if (options?.resumeCheckpointId && options?.hitlRuntime) {
+      try {
+        const checkpoint = options.hitlRuntime.resumeCheckpoint({
+          checkpointId: options.resumeCheckpointId,
+          resumeToken: options.resumeToken || '',
+          decision: options.decision
+        });
+        
+        Object.assign(context.variables, checkpoint.agentContext.variables);
+        context.retrievedMemories.push(...checkpoint.agentContext.retrievedMemories);
+        context.toolOutputs.push(...checkpoint.agentContext.toolOutputs);
+        context.evaluationResults.push(...checkpoint.agentContext.evaluationResults);
+
+        Object.assign(metrics, checkpoint.graphState.metrics);
+        currentNodeId = checkpoint.graphState.currentNodeId;
+        isResumingFirstNode = true;
+      } catch (err: any) {
+        console.error("[AgentGraphRuntime] Resume failed:", err);
+        return {
+          currentNodeId,
+          status: 'CANCELLED',
+          metrics
+        };
+      }
+    } else {
+      this.emitEvent('GRAPH_STARTED', context, metrics, graph.startNodeId);
+    }
 
     while (currentNodeId) {
       const node = graph.nodes[currentNodeId];
@@ -82,6 +115,28 @@ export class AgentGraphRuntime {
         status = 'COMPLETED';
         break;
       }
+
+      // Check node approval pause trigger
+      if (node.requiresHumanApproval && hitlFeatureFlags.HITL_RUNTIME && options?.hitlRuntime && !isResumingFirstNode) {
+        const state: GraphExecutionState = {
+          currentNodeId,
+          status: 'PAUSED',
+          metrics
+        };
+        const checkpoint = options.hitlRuntime.createCheckpoint(state, context, node.approvalPolicy);
+        
+        state.metrics.duration = Date.now() - startTime;
+        return {
+          currentNodeId,
+          status: 'PAUSED',
+          metrics: {
+            ...metrics,
+            maxDepth: Date.now() - startTime // Save generated checkpoint reference duration
+          }
+        };
+      }
+
+      isResumingFirstNode = false;
 
       // Check visit iteration limits
       const visits = (visitCounts[currentNodeId] || 0) + 1;
@@ -106,7 +161,28 @@ export class AgentGraphRuntime {
       let nodeResult: NodeResult;
 
       try {
-        const output = await this.executeAction(node.action, context);
+        if (options?.decision && options.resumeCheckpointId && options.decision.decisionType === 'REJECT') {
+          throw new Error(options.decision.reason || 'Rejected by human');
+        }
+
+        let output: any;
+        if (options?.decision && options.decision.decisionType === 'EDIT' && options.decision.editedOutput !== undefined) {
+          output = options.decision.editedOutput;
+          if (node.action.actionType === 'GENERATE') {
+            context.variables.generatedText = output;
+          } else if (node.action.actionType === 'RETRIEVE_MEMORY') {
+            context.variables.retrievedMemory = output;
+          } else if (node.action.actionType === 'CALL_TOOL') {
+            context.variables.toolCallResult = output;
+          } else if (node.action.actionType === 'EVALUATE') {
+            context.variables.evaluationResult = output;
+          } else if (node.action.actionType === 'STORE_MEMORY') {
+            context.variables.storedMemory = output;
+          }
+        } else {
+          output = await this.executeAction(node.action, context);
+        }
+
         nodeResult = {
           status: 'SUCCESS',
           output

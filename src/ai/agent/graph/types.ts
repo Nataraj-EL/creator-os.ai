@@ -10,6 +10,11 @@ export interface AgentNode {
   id: string;
   action: AgentAction;
   metadata?: Record<string, any>;
+  requiresHumanApproval?: boolean;
+  approvalPolicy?: {
+    policyType: 'SINGLE_APPROVER' | 'ANY_APPROVER' | 'ALL_APPROVERS' | 'TIMEOUT';
+    config?: Record<string, any>;
+  };
 }
 
 export type GraphCondition = (result: NodeResult) => Promise<boolean> | boolean;

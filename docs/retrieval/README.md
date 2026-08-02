@@ -1,4 +1,4 @@
-# Semantic Retrieval Foundation (Sprint 11)
+# Semantic Retrieval Foundation (Sprint 11 & 12)
 
 The Semantic Retrieval Foundation provides a provider-agnostic layer for embedding generation, vector indexing, metadata filtering, and pluggable hybrid ranking (combining semantic and keyword search scores).
 
@@ -21,12 +21,12 @@ The semantic search lifecycle runs embedding generations, vector query lookups, 
   Generate query vector                       Generate query vector
              │                                           │
              ▼                                           ▼
-   [VectorStoreProvider]                       [VectorStoreProvider]
-   Query topK candidate                        Query topK candidate
-  cosine similarities list                    cosine similarities list
+    [VectorStoreProvider]                       [VectorStoreProvider]
+    Query topK candidate                        Query topK candidate
+   cosine similarities list                    cosine similarities list
              │                                           │
              ▼                                           ▼
-     similarityScore                              similarityScore
+      similarityScore                              similarityScore
              │                                           │
              │                                           ▼
              │                                 Run keyword heuristics
@@ -45,6 +45,50 @@ The semantic search lifecycle runs embedding generations, vector query lookups, 
                        * finalScore
                        * RetrievalMetadata
 ```
+
+---
+
+## Context → Retrieval → Memory Integration (Sprint 12)
+
+The unified retrieval pipeline connects context assembly requests to underlying memory stores:
+
+```text
+       ┌────────────────────────────────────────────────────────┐
+       │             ContextAssemblyRuntime.assemble()          │
+       └───────────────────────────┬────────────────────────────┘
+                                   │
+                    Check flag: SEMANTIC_RETRIEVAL
+                                   │
+               ┌───────────────────┴───────────────────┐
+               ▼ (Enabled)                             ▼ (Disabled / Fallback)
+      [RetrievalSearchService]                  [MemoryService.search()]
+    semanticSearch / hybridSearch                 Traditional Keyword Query
+               │                                       │
+               ▼ (Hydrated Results)                    │
+      [RetrievalAdapter]                               │
+    maps records to ContextBlocks                      │
+               │                                       │
+               └───────────────────┬───────────────────┘
+                                   │
+                                   ▼
+             [Deduplication / Ranking / Compression]
+                                   │
+                                   ▼
+                        Final ContextResult
+```
+
+### 1. N+1 Retrieval Prevention
+By packing the original `MemoryRecord` directly into the `RetrievalResult.memoryRecord` property, we prevent the Context layer from making N+1 queries. When querying vectors from database indexes (e.g. pgvector), the system performs a single SQL JOIN between the vector and memory tables, returning fully hydrated results in one query.
+
+### 2. Retrieval Adapter Decoupling
+To keep the Context layer clean and retrieval-agnostic, the `RetrievalAdapter` maps the results:
+```typescript
+const blocks = RetrievalAdapter.mapToContextBlocks(results);
+```
+`ContextAssemblyRuntime` never accesses or understands the internals of `RetrievalResult`.
+
+### 3. Fail-Open Fallback
+If semantic search is disabled, missing a provider, or throws an exception, the system immediately catches the failure and falls back to keyword searches via the `MemoryService.search()`, ensuring generation pipelines never crash.
 
 ---
 

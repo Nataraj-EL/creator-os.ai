@@ -1,3 +1,5 @@
+import { MemoryRecord } from '../../memory/types';
+
 export interface EmbeddingResult {
   vector: number[];
   dimension: number;
@@ -45,6 +47,7 @@ export interface RetrievalResult {
   finalScore: number;
   retrievalReason: string;
   metadata: RetrievalMetadata;
+  memoryRecord?: MemoryRecord;
 }
 
 export interface RetrievalQuery {
@@ -58,6 +61,11 @@ export interface RetrievalQuery {
 export interface HybridRankingStrategy {
   name: string;
   combine(semanticScore: number, keywordScore: number): number;
+}
+
+export interface RetrievalSearchService {
+  semanticSearch(query: RetrievalQuery): Promise<RetrievalResult[]>;
+  hybridSearch(query: RetrievalQuery, strategy?: HybridRankingStrategy): Promise<RetrievalResult[]>;
 }
 
 export interface VectorIndexer {

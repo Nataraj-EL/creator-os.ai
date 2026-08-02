@@ -7,7 +7,8 @@ import {
   HybridRankingStrategy, 
   RetrievalLifecycleEvent, 
   RetrievalLifecycleListener,
-  RetrievalLifecycleEventType
+  RetrievalLifecycleEventType,
+  RetrievalSearchService
 } from '../types';
 import { retrievalProviderRegistry, vectorStoreRegistry } from '../providers/registry';
 import { retrievalFeatureFlags } from '../config/featureFlags';
@@ -77,7 +78,7 @@ export class WeightedHybridStrategy implements HybridRankingStrategy {
   }
 }
 
-export class RetrievalService {
+export class RetrievalService implements RetrievalSearchService {
   private embeddingService: EmbeddingService;
   private listeners: Set<RetrievalLifecycleListener> = new Set();
 
@@ -137,20 +138,38 @@ export class RetrievalService {
     const hits = await store.query(embeddingResult.vector, topK, filters);
     const latency = Date.now() - startTime;
 
-    const results: RetrievalResult[] = hits.map(hit => ({
-      memoryId: hit.record.id,
-      similarityScore: hit.similarity,
-      keywordScore: 0.0,
-      finalScore: hit.similarity,
-      retrievalReason: 'Retrieved via semantic cosine matching.',
-      metadata: {
-        provider: store.name,
-        strategy: 'semantic',
-        embeddingVersion: embeddingResult.embeddingVersion,
-        latency,
-        reason: `Matched via model ${embeddingResult.model}.`
-      }
-    }));
+    const results: RetrievalResult[] = hits.map(hit => {
+      const memoryRecord = hit.record.metadata.memoryRecord || {
+        id: hit.record.id,
+        content: hit.record.metadata.content || '',
+        creatorId: hit.record.metadata.creatorId || query.creatorId,
+        type: hit.record.metadata.type || 'brand',
+        tags: hit.record.metadata.tags || [],
+        importance: hit.record.metadata.importance ?? 5,
+        confidence: hit.record.metadata.confidence ?? 1.0,
+        lastAccessed: hit.record.metadata.lastAccessed || new Date().toISOString(),
+        accessCount: hit.record.metadata.accessCount ?? 0,
+        createdAt: hit.record.metadata.createdAt || new Date().toISOString(),
+        updatedAt: hit.record.metadata.updatedAt || new Date().toISOString(),
+        metadata: hit.record.metadata
+      };
+
+      return {
+        memoryId: hit.record.id,
+        similarityScore: hit.similarity,
+        keywordScore: 0.0,
+        finalScore: hit.similarity,
+        retrievalReason: 'Retrieved via semantic cosine matching.',
+        metadata: {
+          provider: store.name,
+          strategy: 'semantic',
+          embeddingVersion: embeddingResult.embeddingVersion,
+          latency,
+          reason: `Matched via model ${embeddingResult.model}.`
+        },
+        memoryRecord
+      };
+    });
 
     this.emitEvent('SEARCH_COMPLETED', { mode: 'semantic', resultsCount: results.length, latency });
     return results;
@@ -200,6 +219,21 @@ export class RetrievalService {
 
       const finalScore = activeStrategy.combine(hit.similarity, keywordScore);
 
+      const memoryRecord = hit.record.metadata.memoryRecord || {
+        id: hit.record.id,
+        content: hit.record.metadata.content || '',
+        creatorId: hit.record.metadata.creatorId || query.creatorId,
+        type: hit.record.metadata.type || 'brand',
+        tags: hit.record.metadata.tags || [],
+        importance: hit.record.metadata.importance ?? 5,
+        confidence: hit.record.metadata.confidence ?? 1.0,
+        lastAccessed: hit.record.metadata.lastAccessed || new Date().toISOString(),
+        accessCount: hit.record.metadata.accessCount ?? 0,
+        createdAt: hit.record.metadata.createdAt || new Date().toISOString(),
+        updatedAt: hit.record.metadata.updatedAt || new Date().toISOString(),
+        metadata: hit.record.metadata
+      };
+
       return {
         memoryId: hit.record.id,
         similarityScore: hit.similarity,
@@ -212,7 +246,8 @@ export class RetrievalService {
           embeddingVersion: embeddingResult.embeddingVersion,
           latency,
           reason: `Combined score resolved via ${activeStrategy.name}.`
-        }
+        },
+        memoryRecord
       };
     });
 

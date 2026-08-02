@@ -15,20 +15,27 @@ import { ContextRankingStrategyRegistry } from '../ranking';
 import { TokenBudgetCompressor } from '../compression';
 import { contextFeatureFlags } from '../config/featureFlags';
 
+import { RetrievalSearchService } from '../../retrieval/types';
+import { retrievalFeatureFlags } from '../../retrieval/config/featureFlags';
+import { RetrievalAdapter } from './retrievalAdapter';
+
 export class ContextAssemblyRuntime implements ContextAssemblyService {
   private memoryService: MemoryService;
   private rankingRegistry: ContextRankingStrategyRegistry;
   private compressor: ContextCompressor;
+  private retrievalService?: RetrievalSearchService;
   private listeners: Set<ContextLifecycleListener> = new Set();
 
   constructor(
     memoryService: MemoryService,
     rankingRegistry?: ContextRankingStrategyRegistry,
-    compressor?: ContextCompressor
+    compressor?: ContextCompressor,
+    retrievalService?: RetrievalSearchService
   ) {
     this.memoryService = memoryService;
     this.rankingRegistry = rankingRegistry || new ContextRankingStrategyRegistry();
     this.compressor = compressor || new TokenBudgetCompressor();
+    this.retrievalService = retrievalService;
   }
 
   // Lifecycle listeners registry
@@ -87,32 +94,69 @@ export class ContextAssemblyRuntime implements ContextAssemblyService {
       return result;
     }
 
-    // 2. Fetch memory blocks using MemoryService
+    // 2. Fetch memory blocks
     const memoryContext = {
       userId: request.userId,
       requestId,
       metadata: request.metadata
     };
 
-    const memories = await this.memoryService.search(memoryContext, {
-      text: request.prompt,
-      tags: request.tags
-    });
+    let blocks: ContextBlock[] = [];
+    let retrievedFromSemantic = false;
 
-    this.emitEvent('RETRIEVAL_COMPLETED', requestId, { candidateRecordsCount: memories.length });
+    if (retrievalFeatureFlags.SEMANTIC_RETRIEVAL && this.retrievalService) {
+      try {
+        const query = {
+          text: request.prompt,
+          creatorId: request.userId,
+          tags: request.tags,
+          topK: request.metadata?.topK || 10,
+          metadataFilters: request.metadata || {}
+        };
 
-    // Convert memories to ContextBlock entities
-    let blocks: ContextBlock[] = memories.map(record => ({
-      id: record.id,
-      content: record.content,
-      source: 'memory',
-      relevanceScore: record.relevanceScore ?? 0.5,
-      importance: record.importance,
-      timestamp: record.createdAt,
-      tokenCount: this.estimateTokens(record.content),
-      selectionReason: 'Candidate context block retrieved from long-term memory.',
-      metadata: record.metadata || {}
-    }));
+        let results;
+        if (retrievalFeatureFlags.HYBRID_RETRIEVAL) {
+          results = await this.retrievalService.hybridSearch(query);
+        } else {
+          results = await this.retrievalService.semanticSearch(query);
+        }
+
+        blocks = RetrievalAdapter.mapToContextBlocks(results);
+        retrievedFromSemantic = true;
+
+        this.emitEvent('RETRIEVAL_COMPLETED', requestId, { 
+          candidateRecordsCount: results.length, 
+          retrievalMode: retrievalFeatureFlags.HYBRID_RETRIEVAL ? 'hybrid' : 'semantic' 
+        });
+      } catch (err) {
+        console.error("[AI-CTX] Semantic retrieval failed. Falling back to keyword search (fail-open):", err);
+      }
+    }
+
+    if (!retrievedFromSemantic) {
+      const memories = await this.memoryService.search(memoryContext, {
+        text: request.prompt,
+        tags: request.tags
+      });
+
+      this.emitEvent('RETRIEVAL_COMPLETED', requestId, { 
+        candidateRecordsCount: memories.length, 
+        retrievalMode: 'keyword' 
+      });
+
+      // Convert memories to ContextBlock entities
+      blocks = memories.map(record => ({
+        id: record.id,
+        content: record.content,
+        source: 'memory',
+        relevanceScore: record.relevanceScore ?? 0.5,
+        importance: record.importance,
+        timestamp: record.createdAt,
+        tokenCount: this.estimateTokens(record.content),
+        selectionReason: 'Candidate context block retrieved from long-term memory.',
+        metadata: record.metadata || {}
+      }));
+    }
 
     // 3. Deduplication filter (deduplicate identical contents or duplicate IDs)
     const seenIds = new Set<string>();

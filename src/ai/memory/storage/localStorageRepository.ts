@@ -82,7 +82,13 @@ export class LocalStorageMemoryRepository implements MemoryRepository {
       if (query.text) {
         const queryLower = query.text.toLowerCase();
         const contentLower = r.content.toLowerCase();
-        if (!contentLower.includes(queryLower)) return false;
+        
+        // Match if record content contains query text (for short queries)
+        // OR match if the long query text contains the record tags (for prompt queries)
+        const matchesContent = contentLower.includes(queryLower);
+        const matchesTag = r.tags.some(t => queryLower.includes(t.toLowerCase()));
+        
+        if (!matchesContent && !matchesTag) return false;
       }
 
       // Filter by metadata if applicable

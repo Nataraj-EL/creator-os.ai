@@ -9,6 +9,12 @@ import {
 import { evaluationService } from '../ai/evaluation/services';
 import { AIRequest, AIResponse, AIHandler, AIContext } from '../ai/middleware/types';
 
+import { ContextAssemblyRuntime } from '../ai/context/services';
+import { MemoryRuntime } from '../ai/memory/services';
+import { memoryProviderRegistry } from '../ai/memory/providers';
+import { MemoryRepositoryFactory } from '../ai/memory/storage/repositoryFactory';
+import { PromptBuilder, promptFeatureFlags } from '../ai/prompt';
+
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
 
@@ -31,6 +37,17 @@ export interface GenerationResponse extends AIResponse {
   data: any; // Carries raw axios response data from target content API
 }
 
+let contextAssemblyRuntimeInstance: ContextAssemblyRuntime | null = null;
+
+function getContextAssemblyRuntime(): ContextAssemblyRuntime {
+  if (!contextAssemblyRuntimeInstance) {
+    const memoryRepo = MemoryRepositoryFactory.getRepository();
+    const memoryRuntime = new MemoryRuntime(memoryProviderRegistry, memoryRepo);
+    contextAssemblyRuntimeInstance = new ContextAssemblyRuntime(memoryRuntime);
+  }
+  return contextAssemblyRuntimeInstance;
+}
+
 class GenerationHandler implements AIHandler<GenerationRequest, GenerationResponse> {
   async handle(context: AIContext, request: GenerationRequest): Promise<GenerationResponse> {
     const config: Record<string, any> = {};
@@ -43,12 +60,54 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       };
     }
 
+    let finalTopic = request.topic;
+    let selectedMemoryIds: string[] = [];
+    let promptVersion: string | undefined = undefined;
+
+    // Fail-open Context Assembly invocation
+    if (promptFeatureFlags.CONTEXT_INJECTION) {
+      try {
+        const assembler = getContextAssemblyRuntime();
+        const promptString = `Topic: ${request.topic} | Title: ${request.title} | Goal: ${request.primaryGoal}`;
+        
+        const contextResult = await assembler.assemble({
+          userId: context.creatorId,
+          prompt: promptString,
+          tokenBudget: 2000,
+          metadata: { requestId: context.requestId, traceId: context.traceId }
+        });
+
+        selectedMemoryIds = contextResult.blocks.map(b => b.id);
+
+        if (promptFeatureFlags.PROMPT_BUILDER) {
+          const promptPackage = PromptBuilder.build(request.topic, contextResult, {
+            systemInstructions: `You are CreatorOS AI content generator. Title: ${request.title}. Primary Goal: ${request.primaryGoal}.`
+          });
+          
+          promptVersion = promptPackage.metadata.promptVersion;
+
+          // Adapt PromptPackage to provider-specific payload (Axios POST topic field)
+          const formattedBlocksStr = promptPackage.contextBlocks.join('\n\n');
+          finalTopic = `${promptPackage.systemInstructions}\n\nUse the following relevant context:\n\n${formattedBlocksStr}\n\nUser Prompt: ${promptPackage.userPrompt}`;
+        }
+      } catch (err) {
+        console.error("[AI-GEN] Context injection failed (fail-open):", err);
+      }
+    }
+
+    // Propagate ID arrays and prompt version to shared context metadata
+    context.metadata = {
+      ...context.metadata,
+      selectedMemoryIds,
+      promptVersion
+    };
+
     // Outbound API request to backend generation endpoint
     const response = await apiClient.post(
       `/api/v1/workspaces/${request.workspaceId}/content`, 
       {
         title: request.title,
-        topic: request.topic,
+        topic: finalTopic, // Transformed payload!
         primaryGoal: request.primaryGoal
       },
       config
@@ -98,3 +157,4 @@ export async function generateContent(
 
   return { data: response.data };
 }
+export { getContextAssemblyRuntime };

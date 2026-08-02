@@ -37,6 +37,7 @@ import { RetrievalService } from '../ai/retrieval';
 
 import { StreamRuntime, DefaultStreamAdapter, WordChunkingStrategy } from '../ai/streaming';
 import { ToolRegistry, DefaultToolExecutor, DefaultToolValidator, ToolRuntime, ToolResolver } from '../ai/tools';
+import { policyRuntime, featureFlags as policyFeatureFlags } from '../ai/policy';
 
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
@@ -214,6 +215,25 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       }
     }
 
+    if (policyFeatureFlags.POLICY_RUNTIME && policyFeatureFlags.INPUT_GUARDRAILS) {
+      try {
+        const report = await policyRuntime.evaluate('PRE_PROVIDER', finalTopic, {
+          requestId: context.requestId,
+          traceId: context.traceId,
+          creatorId: context.creatorId,
+          provider: request.provider,
+          model: request.model,
+          metadata: context.metadata
+        });
+        finalTopic = report.finalContent;
+      } catch (err: any) {
+        if (err.name === 'PolicyError') {
+          throw err;
+        }
+        console.error("[AI-GEN] Pre-provider policy evaluate failed (fail-open):", err);
+      }
+    }
+
     let responseData: any;
 
     if (providerFeatureFlags.PROVIDERS_ENABLED) {
@@ -284,10 +304,34 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
     }
 
     // Map content for EvaluationMiddleware ingestion
-    const rawContent = responseData?.scriptDraft || 
+    let rawContent = responseData?.scriptDraft || 
                        responseData?.generatedContent || 
                        responseData?.content || 
                        JSON.stringify(responseData);
+
+    if (policyFeatureFlags.POLICY_RUNTIME && policyFeatureFlags.OUTPUT_GUARDRAILS) {
+      try {
+        const report = await policyRuntime.evaluate('POST_PROVIDER', rawContent, {
+          requestId: context.requestId,
+          traceId: context.traceId,
+          creatorId: context.creatorId,
+          provider: request.provider,
+          model: request.model,
+          metadata: context.metadata
+        });
+        rawContent = report.finalContent;
+        if (responseData) {
+          if (responseData.scriptDraft !== undefined) responseData.scriptDraft = rawContent;
+          if (responseData.generatedContent !== undefined) responseData.generatedContent = rawContent;
+          if (responseData.content !== undefined) responseData.content = rawContent;
+        }
+      } catch (err: any) {
+        if (err.name === 'PolicyError') {
+          throw err;
+        }
+        console.error("[AI-GEN] Post-provider policy evaluate failed (fail-open):", err);
+      }
+    }
 
     return {
       content: rawContent,

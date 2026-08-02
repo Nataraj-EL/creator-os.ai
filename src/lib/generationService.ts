@@ -23,6 +23,13 @@ import {
 
 import { ContextAssemblyRuntime } from '../ai/context/services';
 import { MemoryRuntime } from '../ai/memory/services';
+import { 
+  featureFlags as agentFeatureFlags, 
+  AgentPlanner, 
+  AgentRuntime,
+  AgentServices 
+} from '../ai/agent';
+import { traceEventBus } from '../ai/observability/services/traceRuntime';
 import { memoryProviderRegistry } from '../ai/memory/providers';
 import { MemoryRepositoryFactory } from '../ai/memory/storage/repositoryFactory';
 import { PromptBuilder, promptFeatureFlags } from '../ai/prompt';
@@ -81,6 +88,65 @@ function getContextAssemblyRuntime(): ContextAssemblyRuntime {
 
 class GenerationHandler implements AIHandler<GenerationRequest, GenerationResponse> {
   async handle(context: AIContext, request: GenerationRequest): Promise<GenerationResponse> {
+    if (agentFeatureFlags.AGENT_RUNTIME) {
+      try {
+        const planner = new AgentPlanner();
+        const memoryRepo = MemoryRepositoryFactory.getRepository();
+        const memoryRuntime = new MemoryRuntime(memoryProviderRegistry, memoryRepo);
+        const retrievalService = new RetrievalService();
+        const DefaultMemoryLearningService = require('../ai/memory/extraction/services/learningService').DefaultMemoryLearningService;
+        const memoryLearningService = new DefaultMemoryLearningService();
+
+        const services: AgentServices = {
+          providerResolver,
+          retrievalService,
+          toolRuntime,
+          streamRuntime,
+          evaluationService,
+          memoryLearningService
+        };
+
+        const agentRuntime = new AgentRuntime(planner, services);
+
+        agentRuntime.addListener((event) => {
+          try {
+            traceEventBus.publish({
+              traceId: context.traceId || '',
+              requestId: context.requestId || '',
+              component: 'AgentRuntime',
+              stage: 'GENERATION',
+              status: event.type.endsWith('FAILED') ? 'failed' : 'completed',
+              metadata: {
+                eventType: event.type,
+                stepId: event.stepId,
+                actionType: event.actionType,
+                ...event.details
+              }
+            });
+          } catch {
+            // Fail-open
+          }
+        });
+
+        const agentRes = await agentRuntime.run({
+          requestId: context.requestId || '',
+          traceId: context.traceId || '',
+          creatorId: context.creatorId || '',
+          workspaceId: request.workspaceId,
+          sessionId: (context as any).sessionId || 'session-agent',
+          prompt: request.topic,
+          metadata: { ...context.metadata }
+        });
+
+        return {
+          content: agentRes.output,
+          data: agentRes
+        };
+      } catch (err: any) {
+        console.error("[AI-AGENT] Agent execution failed, falling back to standard generation (fail-open):", err);
+      }
+    }
+
     const config: Record<string, any> = {};
 
     // Propagate requestId and traceId internally as optional trace headers

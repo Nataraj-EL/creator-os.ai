@@ -29,6 +29,7 @@ import { PromptBuilder, promptFeatureFlags } from '../ai/prompt';
 import { RetrievalService } from '../ai/retrieval';
 
 import { StreamRuntime, DefaultStreamAdapter, WordChunkingStrategy } from '../ai/streaming';
+import { ToolRegistry, DefaultToolExecutor, DefaultToolValidator, ToolRuntime, ToolResolver } from '../ai/tools';
 
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
@@ -38,6 +39,12 @@ export const streamRuntime = new StreamRuntime(
   new DefaultStreamAdapter(),
   new WordChunkingStrategy()
 );
+
+export const toolRegistry = new ToolRegistry();
+export const toolExecutor = new DefaultToolExecutor();
+export const toolValidator = new DefaultToolValidator();
+export const toolRuntime = new ToolRuntime(toolRegistry, toolExecutor, toolValidator);
+export const toolResolver = new ToolResolver(toolRuntime);
 
 // Ensure built-in middlewares are registered exactly once
 if (generationMiddlewareRunner.getMiddlewares().length === 0) {

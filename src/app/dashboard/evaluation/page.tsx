@@ -15,6 +15,10 @@ import {
 } from '../../../ai/streaming';
 import { streamRuntime } from '../../../lib/generationService';
 import { 
+  featureFlags as toolFeatureFlags 
+} from '../../../ai/tools';
+import { toolRegistry, toolRuntime } from '../../../lib/generationService';
+import { 
   EvaluationRepositoryFactory 
 } from '../../../ai/evaluation/storage/repositoryFactory';
 import { 
@@ -130,8 +134,179 @@ export default function DeveloperEvaluationConsole() {
   const [inspectTab, setInspectTab] = useState<'parsed' | 'raw' | 'trace'>('parsed');
   const [activeTrace, setActiveTrace] = useState<any | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
-  const [consoleTab, setConsoleTab] = useState<'runs' | 'experiments' | 'streaming'>('runs');
+  const [consoleTab, setConsoleTab] = useState<'runs' | 'experiments' | 'streaming' | 'tools'>('runs');
   const [experimentsAnalytics, setExperimentsAnalytics] = useState<any[]>([]);
+
+  // Tools Console Sandbox States
+  const [registeredTools, setRegisteredTools] = useState<any[]>([]);
+  const [selectedTool, setSelectedTool] = useState<any | null>(null);
+  const [toolArgumentsInput, setToolArgumentsInput] = useState('{\n  "location": "New York",\n  "units": "celsius"\n}');
+  const [toolExecutionHistory, setToolExecutionHistory] = useState<any[]>([]);
+  const [selectedToolExecution, setSelectedToolExecution] = useState<any | null>(null);
+  const [executingTool, setExecutingTool] = useState(false);
+  const [toolSandboxResult, setToolSandboxResult] = useState<any | null>(null);
+
+  useEffect(() => {
+    setRegisteredTools(toolRegistry.listTools());
+    if (toolRegistry.listTools().length > 0 && !selectedTool) {
+      setSelectedTool(toolRegistry.listTools()[0]);
+    }
+  }, [consoleTab]);
+
+  useEffect(() => {
+    if (selectedTool) {
+      if (selectedTool.name === 'fetch_weather') {
+        setToolArgumentsInput(JSON.stringify({ location: 'New York', units: 'celsius' }, null, 2));
+      } else if (selectedTool.name === 'generate_image_mock') {
+        setToolArgumentsInput(JSON.stringify({ promptText: 'Vibrant neon skyline', aspectRatio: '16:9' }, null, 2));
+      } else {
+        const defaultArgs: Record<string, any> = {};
+        const props = selectedTool.schema?.parameters?.properties || {};
+        Object.keys(props).forEach(k => {
+          if (props[k].enum && props[k].enum.length > 0) {
+            defaultArgs[k] = props[k].enum[0];
+          } else {
+            defaultArgs[k] = props[k].type === 'string' ? 'test' : props[k].type === 'number' ? 123 : true;
+          }
+        });
+        setToolArgumentsInput(JSON.stringify(defaultArgs, null, 2));
+      }
+    }
+  }, [selectedTool]);
+
+  // Pre-seed registry if empty for visual sandbox utility
+  useEffect(() => {
+    if (toolRegistry.listTools().length === 0) {
+      toolRegistry.register({
+        name: 'fetch_weather',
+        description: 'Retrieves current weather details for a specific geo-location.',
+        category: 'Information',
+        schema: {
+          name: 'fetch_weather',
+          description: 'Retrieves current weather details for a specific geo-location.',
+          parameters: {
+            type: 'object',
+            properties: {
+              location: { type: 'string', description: 'City name or coordinates.' },
+              units: { type: 'string', enum: ['celsius', 'fahrenheit'], description: 'Temperature scale format.' }
+            },
+            required: ['location']
+          }
+        },
+        execute: async (args) => {
+          return {
+            temperature: args.units === 'fahrenheit' ? 72 : 22,
+            conditions: 'Mostly Sunny',
+            humidity: '45%'
+          };
+        }
+      });
+      toolRegistry.register({
+        name: 'generate_image_mock',
+        description: 'Generates a mock media visual from description guidelines.',
+        category: 'Media',
+        schema: {
+          name: 'generate_image_mock',
+          description: 'Generates a mock media visual from description guidelines.',
+          parameters: {
+            type: 'object',
+            properties: {
+              promptText: { type: 'string', description: 'Text prompt descriptions.' },
+              aspectRatio: { type: 'string', enum: ['16:9', '9:16', '1:1'] }
+            },
+            required: ['promptText']
+          }
+        },
+        execute: async (args) => {
+          return {
+            url: `https://images.unsplash.com/photo-mock-${args.aspectRatio.replace(':', '-')}`,
+            seed: 874920
+          };
+        }
+      });
+      const list = toolRegistry.listTools();
+      setRegisteredTools(list);
+      if (list.length > 0) {
+        setSelectedTool(list[0]);
+      }
+    }
+  }, []);
+
+  const runToolSandbox = async () => {
+    if (!selectedTool) return;
+    setExecutingTool(true);
+    setToolSandboxResult(null);
+
+    let parsedArgs = {};
+    try {
+      parsedArgs = JSON.parse(toolArgumentsInput);
+    } catch (err: any) {
+      setExecutingTool(false);
+      const invalidResult = {
+        toolName: selectedTool.name,
+        executionId: 'exec-' + Math.random().toString(36).substring(2, 9),
+        success: false,
+        status: 'FAILED' as const,
+        error: `Invalid JSON Arguments: ${err.message}`,
+        latencyMs: 0,
+        retryCount: 0
+      };
+      setToolSandboxResult(invalidResult);
+      return;
+    }
+
+    const startTime = Date.now();
+    const traceId = 'trace-mw-' + Math.random().toString(36).substring(2, 9);
+    const requestId = 'req-mw-' + Math.random().toString(36).substring(2, 9);
+
+    try {
+      const result = await toolRuntime.execute({
+        toolName: selectedTool.name,
+        arguments: parsedArgs,
+        context: {
+          requestId,
+          traceId,
+          creatorId: 'creator-999',
+          workspaceId: 'workspace-123'
+        }
+      });
+
+      setToolSandboxResult(result);
+      
+      const newExecution = {
+        executionId: result.executionId,
+        toolName: selectedTool.name,
+        arguments: parsedArgs,
+        success: result.success,
+        status: result.status,
+        output: result.output,
+        error: result.error,
+        latencyMs: result.latencyMs,
+        retryCount: result.retryCount,
+        timestamp: new Date().toISOString()
+      };
+
+      setToolExecutionHistory(prev => [newExecution, ...prev]);
+      setSelectedToolExecution(newExecution);
+    } catch (err: any) {
+      const failedExec = {
+        executionId: 'exec-' + Math.random().toString(36).substring(2, 9),
+        toolName: selectedTool.name,
+        arguments: parsedArgs,
+        success: false,
+        status: 'FAILED' as const,
+        error: err.message || 'Execution error',
+        latencyMs: Date.now() - startTime,
+        retryCount: 0,
+        timestamp: new Date().toISOString()
+      };
+      setToolSandboxResult(failedExec);
+      setToolExecutionHistory(prev => [failedExec, ...prev]);
+      setSelectedToolExecution(failedExec);
+    } finally {
+      setExecutingTool(false);
+    }
+  };
 
   // Streaming Sandbox States
   const [streamPrompt, setStreamPrompt] = useState('Write a 3-step script hook for a tech review video.');
@@ -644,6 +819,18 @@ export default function DeveloperEvaluationConsole() {
             }`}
           >
             Streaming Sandbox
+          </button>
+        )}
+        {toolFeatureFlags.TOOLS_ENABLED && (
+          <button
+            onClick={() => setConsoleTab('tools')}
+            className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
+              consoleTab === 'tools' 
+                ? 'border-cyan-500 text-cyan-400 font-extrabold' 
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Tools Sandbox
           </button>
         )}
       </div>
@@ -1491,6 +1678,252 @@ export default function DeveloperEvaluationConsole() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {consoleTab === 'tools' && (
+        <div className="space-y-8 animate-fadeIn">
+          <div className="glass-card rounded-2xl p-6 border border-white/5 bg-white/[0.01]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-cyan-400" />
+                  AI Tool Calling Registry Sandbox
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  Inspect registered schemas, call functions in an isolated sandbox environment, and review trace logs.
+                </p>
+              </div>
+
+              {toolExecutionHistory.length > 0 && (
+                <button
+                  onClick={() => {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(toolExecutionHistory, null, 2));
+                    const downloadAnchor = document.createElement('a');
+                    downloadAnchor.setAttribute("href", dataStr);
+                    downloadAnchor.setAttribute("download", `tool_execution_history_${Date.now()}.json`);
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    downloadAnchor.remove();
+                  }}
+                  className="bg-white/5 hover:bg-white/10 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center gap-2 cursor-pointer transition-all border border-white/15 focus:outline-none"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export History JSON
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              {/* TOOL SCHEMAS LIST */}
+              <div className="xl:col-span-1 border border-white/5 rounded-2xl bg-black/20 p-4 space-y-4">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block">Registered Tool Registry ({registeredTools.length})</span>
+                <div className="space-y-2 max-h-[450px] overflow-y-auto custom-scrollbar">
+                  {registeredTools.map((t) => {
+                    const isSelected = selectedTool?.name === t.name;
+                    return (
+                      <div
+                        key={t.name}
+                        onClick={() => setSelectedTool(t)}
+                        className={`p-3.5 rounded-xl cursor-pointer transition-all border ${
+                          isSelected 
+                            ? 'bg-cyan-500/5 border-cyan-500/30' 
+                            : 'bg-white/[0.01] border-white/5 hover:bg-white/[0.02]'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="text-xs font-bold text-white font-mono">{t.name}</span>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/[0.05] text-zinc-400 uppercase tracking-wider">{t.category}</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed line-clamp-2">{t.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* TOOL INTERACTIVE SANDBOX */}
+              <div className="xl:col-span-2 space-y-6">
+                {selectedTool ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Schema details & Inputs */}
+                    <div className="space-y-4">
+                      <div className="border border-white/5 rounded-2xl bg-white/[0.01] p-5 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-sm font-bold text-white font-mono">{selectedTool.name}</h3>
+                          <span className="text-[10px] text-zinc-500 font-mono">Category: {selectedTool.category}</span>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">{selectedTool.description}</p>
+
+                        <div className="pt-2">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block mb-2">Required Parameters</span>
+                          {selectedTool.schema?.parameters?.required && selectedTool.schema.parameters.required.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {selectedTool.schema.parameters.required.map((req: string) => (
+                                <span key={req} className="text-[10px] bg-red-500/10 text-red-400 px-2 py-1 rounded border border-red-500/10 font-mono">{req}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-zinc-600 italic">None required.</span>
+                          )}
+                        </div>
+
+                        <div className="pt-2">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block mb-1.5">Property Schema Types</span>
+                          <div className="space-y-1 text-[11px] font-mono text-zinc-500 max-h-40 overflow-y-auto custom-scrollbar">
+                            {Object.entries(selectedTool.schema?.parameters?.properties || {}).map(([key, val]: [string, any]) => (
+                              <div key={key} className="flex justify-between items-baseline py-1 border-b border-white/[0.02]">
+                                <span className="text-zinc-300 font-semibold">{key}</span>
+                                <span>{val.type} {val.enum ? `[${val.enum.join('|')}]` : ''}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inputs sandbox editor */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider">Arguments Input JSON</label>
+                        <textarea
+                          value={toolArgumentsInput}
+                          onChange={(e) => setToolArgumentsInput(e.target.value)}
+                          rows={6}
+                          className="w-full bg-zinc-955 border border-white/[0.08] hover:border-white/20 focus:border-cyan-500/50 rounded-xl p-3.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all font-mono leading-relaxed resize-none"
+                          disabled={executingTool}
+                        />
+                      </div>
+
+                      <button
+                        onClick={runToolSandbox}
+                        disabled={executingTool}
+                        className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-zinc-800 text-black font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-cyan-500/10 focus:outline-none disabled:cursor-not-allowed"
+                      >
+                        {executingTool ? (
+                          <>
+                            <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
+                            Executing Tool call...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3.5 h-3.5 fill-black" />
+                            Execute Sandbox Tool Call
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Result Output Inspector */}
+                    <div className="flex flex-col border border-white/5 rounded-2xl bg-black/25 overflow-hidden min-h-[300px]">
+                      <div className="flex justify-between items-center px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+                        <div className="flex items-center gap-2">
+                          {toolSandboxResult ? (
+                            <>
+                              <span className={`h-2.5 w-2.5 rounded-full ${
+                                toolSandboxResult.success ? 'bg-emerald-400' : 'bg-red-500'
+                              }`} />
+                              <span className="text-xs font-mono text-zinc-300 capitalize">{toolSandboxResult.status}</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-zinc-500">Execution Output</span>
+                          )}
+                        </div>
+                        {toolSandboxResult && (
+                          <div className="text-[10px] text-zinc-500 font-mono">
+                            Latency: <span className="text-cyan-400 font-semibold">{toolSandboxResult.latencyMs}ms</span> | Retries: <span className="text-cyan-400 font-semibold">{toolSandboxResult.retryCount}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 p-5 text-xs font-mono text-zinc-200 overflow-y-auto leading-relaxed custom-scrollbar whitespace-pre-wrap select-text max-h-[320px]">
+                        {toolSandboxResult ? (
+                          toolSandboxResult.success ? (
+                            JSON.stringify(toolSandboxResult.output, null, 2)
+                          ) : (
+                            <span className="text-red-400">{toolSandboxResult.error}</span>
+                          )
+                        ) : (
+                          <span className="text-zinc-600 italic">Run tool to inspect JSON output results...</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-20 bg-white/[0.01] border border-white/5 rounded-2xl">
+                    <Layers className="h-10 w-10 text-zinc-600 mx-auto mb-4" />
+                    <h3 className="text-sm font-bold text-white">No tool selected</h3>
+                    <p className="text-xs text-zinc-500 mt-2">Select a tool from the registry to execute.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* AUDIT EXECUTION HISTORY */}
+            {toolExecutionHistory.length > 0 && (
+              <div className="mt-8 border-t border-white/5 pt-8 space-y-4">
+                <span className="text-xs uppercase font-bold tracking-wider text-zinc-400 block">Execution Audit Log History</span>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* History table */}
+                  <div className="lg:col-span-2 border border-white/5 rounded-2xl overflow-hidden divide-y divide-white/5 bg-white/[0.01] max-h-80 overflow-y-auto custom-scrollbar">
+                    {toolExecutionHistory.map((item) => {
+                      const isSelected = selectedToolExecution?.executionId === item.executionId;
+                      return (
+                        <div
+                          key={item.executionId}
+                          onClick={() => setSelectedToolExecution(item)}
+                          className={`p-3.5 text-xs flex justify-between items-center hover:bg-white/[0.02] cursor-pointer transition-colors ${
+                            isSelected ? 'bg-cyan-500/5' : ''
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <span className="font-bold text-white font-mono">{item.toolName}</span>
+                            <span className="text-[10px] text-zinc-500 block font-mono">{item.executionId}</span>
+                          </div>
+                          <div className="flex items-center gap-6 font-mono text-[10px]">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                              item.success 
+                                ? 'bg-emerald-500/10 text-emerald-400' 
+                                : 'bg-red-500/10 text-red-400'
+                            }`}>{item.status}</span>
+                            <span className="text-zinc-400">{item.latencyMs}ms</span>
+                            <span className="text-zinc-500">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Inspector Panel */}
+                  <div className="lg:col-span-1 border border-white/5 rounded-2xl bg-black/20 p-4 space-y-4 flex flex-col justify-between max-h-80 overflow-y-auto custom-scrollbar text-xs">
+                    {selectedToolExecution ? (
+                      <div className="space-y-3 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-baseline border-b border-white/5 pb-2">
+                            <span className="font-bold text-white font-mono">{selectedToolExecution.toolName}</span>
+                            <span className="text-[9px] text-zinc-500 font-mono">{selectedToolExecution.executionId}</span>
+                          </div>
+
+                          <div className="mt-3 space-y-1 leading-relaxed">
+                            <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Input Arguments</span>
+                            <pre className="bg-black/40 border border-white/5 rounded-lg p-2 text-[10px] text-zinc-400 overflow-x-auto leading-normal">
+                              {JSON.stringify(selectedToolExecution.arguments, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-white/5 flex justify-between text-[10px] font-mono text-zinc-500">
+                          <div>Retries: <span className="text-cyan-400">{selectedToolExecution.retryCount}</span></div>
+                          <div>Status: <span className={selectedToolExecution.success ? 'text-emerald-400' : 'text-red-400'}>{selectedToolExecution.status}</span></div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-10 text-zinc-600 italic">Select history entry to inspect details...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}

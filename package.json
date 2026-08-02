@@ -10,7 +10,7 @@
     "test:eval": "node --import tsx src/ai/evaluation/tests/evaluation.test.ts",
     "test:middleware": "node --import tsx src/ai/middleware/tests/middleware.test.ts",
     "test:integration": "node --import tsx src/ai/middleware/tests/integration.test.ts",
-    "test:memory": "node --import tsx src/ai/memory/tests/memory.test.ts",
+    "test:memory": "node --import tsx src/ai/memory/tests/memory.test.ts && node --import tsx src/ai/memory/tests/integration.test.ts",
     "test:context": "node --import tsx src/ai/context/tests/context.test.ts"
   },
   "dependencies": {

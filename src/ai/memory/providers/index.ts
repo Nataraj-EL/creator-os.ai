@@ -30,3 +30,4 @@ export class MemoryProviderRegistry {
 }
 
 export const memoryProviderRegistry = new MemoryProviderRegistry();
+export * from './creatorMemoryProvider';

@@ -228,7 +228,8 @@ export class MemoryRuntime implements MemoryService {
     this.emitEvent('SEARCH', context, { 
       queryText: query.text, 
       tagsCount: query.tags?.length || 0,
-      resultsCount: rankedResults.length 
+      resultsCount: rankedResults.length,
+      retrievedIds: rankedResults.map(r => r.id)
     });
 
     return rankedResults;

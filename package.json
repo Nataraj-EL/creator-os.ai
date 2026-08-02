@@ -21,7 +21,8 @@
     "test:providers": "node --import tsx src/ai/providers/tests/providers.test.ts",
     "test:streaming": "node --import tsx src/ai/streaming/tests/streaming.test.ts",
     "test:tools": "node --import tsx src/ai/tools/tests/tools.test.ts",
-    "test:agent": "node --import tsx src/ai/agent/tests/runtime.test.ts"
+    "test:agent": "node --import tsx src/ai/agent/tests/runtime.test.ts",
+    "test:graph": "node --import tsx src/ai/agent/graph/tests/runtime.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

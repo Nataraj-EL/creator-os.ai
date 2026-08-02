@@ -5,10 +5,13 @@ import {
   TimingMiddleware, 
   LoggingMiddleware, 
   MemoryLearningMiddleware,
-  EvaluationMiddleware 
+  EvaluationMiddleware,
+  EvaluationRuntimeMiddleware
 } from '../ai/middleware/builtins';
 import { evaluationService } from '../ai/evaluation/services';
 import { AIRequest, AIResponse, AIHandler, AIContext } from '../ai/middleware/types';
+import { featureFlags } from '../ai/evaluation/config/featureFlags';
+import { experimentService } from '../ai/evaluation/runtime';
 
 import { ContextAssemblyRuntime } from '../ai/context/services';
 import { MemoryRuntime } from '../ai/memory/services';
@@ -27,6 +30,7 @@ if (generationMiddlewareRunner.getMiddlewares().length === 0) {
   generationMiddlewareRunner.use(new LoggingMiddleware());
   generationMiddlewareRunner.use(new MemoryLearningMiddleware());
   generationMiddlewareRunner.use(new EvaluationMiddleware(evaluationService));
+  generationMiddlewareRunner.use(new EvaluationRuntimeMiddleware());
 }
 
 export interface GenerationRequest extends AIRequest {
@@ -67,6 +71,27 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
     let finalTopic = request.topic;
     let selectedMemoryIds: string[] = [];
     let promptVersion: string | undefined = undefined;
+    let contextResult: any = null;
+
+    let variantId: string | undefined = undefined;
+    let templateOverride: string | undefined = undefined;
+
+    if (featureFlags.EXPERIMENTS_ENABLED) {
+      try {
+        const activeExperiments = experimentService.getAllExperiments();
+        if (activeExperiments.length > 0) {
+          const exp = activeExperiments[0];
+          const assignment = await experimentService.assignVariant(exp.experimentId, context.traceId || '');
+          variantId = assignment.variantId;
+          const variant = exp.variants.find(v => v.variantId === variantId);
+          if (variant) {
+            templateOverride = variant.promptTemplate;
+          }
+        }
+      } catch (err) {
+        console.error("[AI-GEN] Experiment variant assignment failed (fail-open):", err);
+      }
+    }
 
     // Fail-open Context Assembly invocation
     if (promptFeatureFlags.CONTEXT_INJECTION) {
@@ -74,18 +99,19 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
         const assembler = getContextAssemblyRuntime();
         const promptString = `Topic: ${request.topic} | Title: ${request.title} | Goal: ${request.primaryGoal}`;
         
-        const contextResult = await assembler.assemble({
+        contextResult = await assembler.assemble({
           userId: context.creatorId,
           prompt: promptString,
           tokenBudget: 2000,
           metadata: { requestId: context.requestId, traceId: context.traceId }
         });
 
-        selectedMemoryIds = contextResult.blocks.map(b => b.id);
+        selectedMemoryIds = contextResult.blocks.map((b: any) => b.id);
 
         if (promptFeatureFlags.PROMPT_BUILDER) {
+          const systemInstructions = templateOverride || `You are CreatorOS AI content generator. Title: ${request.title}. Primary Goal: ${request.primaryGoal}.`;
           const promptPackage = PromptBuilder.build(request.topic, contextResult, {
-            systemInstructions: `You are CreatorOS AI content generator. Title: ${request.title}. Primary Goal: ${request.primaryGoal}.`
+            systemInstructions
           });
           
           promptVersion = promptPackage.metadata.promptVersion;
@@ -99,11 +125,13 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       }
     }
 
-    // Propagate ID arrays and prompt version to shared context metadata
+    // Propagate ID arrays, prompt version, variantId, and contextBlocks to shared context metadata
     context.metadata = {
       ...context.metadata,
       selectedMemoryIds,
-      promptVersion
+      promptVersion,
+      variantId,
+      contextBlocks: contextResult ? contextResult.blocks : []
     };
 
     // Outbound API request to backend generation endpoint

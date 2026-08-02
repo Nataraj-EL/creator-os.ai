@@ -4,6 +4,9 @@ export interface EvaluationFeatureFlags {
   MEMORY_EVAL: boolean;
   CONTEXT_EVAL: boolean;
   PROMPT_EVAL: boolean;
+  EVALUATION_RUNTIME: boolean;
+  AUTO_EVALUATION: boolean;
+  EXPERIMENTS_ENABLED: boolean;
 }
 
 export const featureFlags: EvaluationFeatureFlags = {
@@ -12,4 +15,7 @@ export const featureFlags: EvaluationFeatureFlags = {
   MEMORY_EVAL: false,
   CONTEXT_EVAL: false,
   PROMPT_EVAL: false,
+  EVALUATION_RUNTIME: false,
+  AUTO_EVALUATION: false,
+  EXPERIMENTS_ENABLED: false,
 };

@@ -7,6 +7,10 @@ import {
 } from '../../../ai/evaluation/services';
 import { traceRuntime } from '../../../ai/observability';
 import { 
+  experimentService,
+  experimentAnalyticsService
+} from '../../../ai/evaluation/runtime';
+import { 
   EvaluationRepositoryFactory 
 } from '../../../ai/evaluation/storage/repositoryFactory';
 import { 
@@ -31,7 +35,8 @@ import {
   ChevronRight, 
   X,
   RefreshCcw,
-  Sparkles
+  Sparkles,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -121,6 +126,8 @@ export default function DeveloperEvaluationConsole() {
   const [inspectTab, setInspectTab] = useState<'parsed' | 'raw' | 'trace'>('parsed');
   const [activeTrace, setActiveTrace] = useState<any | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [consoleTab, setConsoleTab] = useState<'runs' | 'experiments'>('runs');
+  const [experimentsAnalytics, setExperimentsAnalytics] = useState<any[]>([]);
   
   // Interactive Filters
   const [search, setSearch] = useState('');
@@ -146,6 +153,16 @@ export default function DeveloperEvaluationConsole() {
       // Sort newest first
       const sorted = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setRecords(sorted);
+      await loadExperiments();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadExperiments = async () => {
+    try {
+      const list = await experimentAnalyticsService.getAllExperimentAnalytics();
+      setExperimentsAnalytics(list);
     } catch (e) {
       console.error(e);
     }
@@ -393,8 +410,11 @@ export default function DeveloperEvaluationConsole() {
   const handleClearRecords = async () => {
     if (confirm("Are you sure you want to clear all local storage evaluation records?")) {
       await (repository as any).clear();
+      experimentService.clear();
+      experimentAnalyticsService.clear();
       setRecords([]);
       setSelectedRecord(null);
+      await loadExperiments();
     }
   };
 
@@ -509,7 +529,33 @@ export default function DeveloperEvaluationConsole() {
         </div>
       </div>
 
-      {/* FILTER CONTROLS */}
+      {/* CONSOLE TAB SWITCHER */}
+      <div className="flex border-b border-white/5 mb-6">
+        <button
+          onClick={() => setConsoleTab('runs')}
+          className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
+            consoleTab === 'runs' 
+              ? 'border-cyan-500 text-cyan-400 font-extrabold' 
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          Evaluation Audit Runs
+        </button>
+        <button
+          onClick={() => setConsoleTab('experiments')}
+          className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
+            consoleTab === 'experiments' 
+              ? 'border-cyan-500 text-cyan-400 font-extrabold' 
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          A/B Experiments Console
+        </button>
+      </div>
+
+      {consoleTab === 'runs' && (
+        <>
+          {/* FILTER CONTROLS */}
       <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col md:flex-row gap-4 items-center justify-between">
         
         {/* Search */}
@@ -1058,6 +1104,145 @@ export default function DeveloperEvaluationConsole() {
         </AnimatePresence>
 
       </div>
+        </>
+      )}
+
+      {consoleTab === 'experiments' && (
+        <div className="space-y-8">
+          {experimentsAnalytics.length === 0 ? (
+            <div className="text-center py-20 bg-white/[0.01] border border-white/5 rounded-2xl">
+              <Sparkles className="h-10 w-10 text-zinc-600 mx-auto mb-4 animate-pulse" />
+              <h3 className="text-base font-bold text-white">No Experiments Configured</h3>
+              <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-2 leading-relaxed">
+                Active prompt template experiments and variant performance assignments will compile here once registered in the runtime.
+              </p>
+            </div>
+          ) : (
+            experimentsAnalytics.map((exp: any) => (
+              <div key={exp.experimentId} className="glass-card border border-white/5 rounded-2xl p-6 space-y-6">
+                
+                {/* Experiment Header */}
+                <div className="flex justify-between items-start border-b border-white/5 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">{exp.experimentName}</h3>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">
+                      Experiment ID: {exp.experimentId}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exp, null, 2));
+                        const downloadAnchor = document.createElement('a');
+                        downloadAnchor.setAttribute("href", dataStr);
+                        downloadAnchor.setAttribute("download", `experiment-${exp.experimentId}-analytics.json`);
+                        document.body.appendChild(downloadAnchor);
+                        downloadAnchor.click();
+                        downloadAnchor.remove();
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] text-zinc-300 text-xs font-semibold focus:outline-none transition-all cursor-pointer"
+                    >
+                      Export Analytics JSON
+                    </button>
+                  </div>
+                </div>
+
+                {/* Variant Performance Grid */}
+                <div className="overflow-x-auto border border-white/5 rounded-xl">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/[0.01] text-zinc-400 font-semibold">
+                        <th className="p-3">Variant Name</th>
+                        <th className="p-3 text-center">Assignments</th>
+                        <th className="p-3 text-center">Avg Relevance</th>
+                        <th className="p-3 text-center">Avg Context Usage</th>
+                        <th className="p-3 text-center">Avg Grounding</th>
+                        <th className="p-3 text-center">Avg Quality</th>
+                        <th className="p-3 text-center bg-cyan-500/5 text-cyan-300">Overall Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {exp.variants.map((v: any) => {
+                        const isLeader = v.variantId === exp.leaderVariantId && exp.totalAssignments > 0;
+                        return (
+                          <tr key={v.variantId} className="hover:bg-white/[0.01]">
+                            <td className="p-3 font-semibold text-white flex items-center gap-2">
+                              {v.variantName}
+                              {isLeader && (
+                                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-bold text-emerald-400 uppercase tracking-wide">
+                                  <Star className="h-2.5 w-2.5 fill-current" /> Leader
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center font-mono text-zinc-300">{v.assignmentCount}</td>
+                            <td className="p-3 text-center font-mono text-zinc-300">{v.avgRelevance}%</td>
+                            <td className="p-3 text-center font-mono text-zinc-300">{v.avgContextUsage}%</td>
+                            <td className="p-3 text-center font-mono text-zinc-300">{v.avgGrounding}%</td>
+                            <td className="p-3 text-center font-mono text-zinc-300">{v.avgResponseQuality}%</td>
+                            <td className="p-3 text-center font-mono font-bold bg-cyan-500/5 text-cyan-300">{v.avgOverallScore}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Score Comparison Visual Bars */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Metric Comparison Summary</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                    {exp.variants.map((v: any) => (
+                      <div key={v.variantId} className="space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-zinc-200">{v.variantName}</span>
+                          <span className="font-mono text-cyan-400 font-extrabold">{v.avgOverallScore}% Overall</span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>Relevance</span>
+                            <span>{v.avgRelevance}%</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] rounded-full h-1">
+                            <div className="bg-cyan-500 h-full rounded-full" style={{ width: `${v.avgRelevance}%` }} />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>Context Usage</span>
+                            <span>{v.avgContextUsage}%</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] rounded-full h-1">
+                            <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${v.avgContextUsage}%` }} />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>Grounding</span>
+                            <span>{v.avgGrounding}%</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] rounded-full h-1">
+                            <div className="bg-violet-500 h-full rounded-full" style={{ width: `${v.avgGrounding}%` }} />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>Quality</span>
+                            <span>{v.avgResponseQuality}%</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] rounded-full h-1">
+                            <div className="bg-purple-500 h-full rounded-full" style={{ width: `${v.avgResponseQuality}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -163,3 +163,4 @@ export class EvaluationMiddleware implements AIMiddleware {
 }
 
 export * from './memoryLearningMiddleware';
+export * from './evaluationRuntimeMiddleware';

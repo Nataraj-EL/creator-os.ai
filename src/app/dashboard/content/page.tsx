@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../../lib/store';
 import { apiClient } from '../../../lib/api-client';
+import { generateContent } from '../../../lib/generationService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Video, FileText, Loader2, Wand2, Search, Filter, 
@@ -134,6 +135,7 @@ const renderFormattedText = (text: string) => {
 
 export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { defaultTool?: 'scriptwriter' | 'repurposer' } = {}) {
   const activeWorkspace = useAuthStore((state) => state.activeWorkspace);
+  const user = useAuthStore((state) => state.user);
 
   // States
   const [projects, setProjects] = useState<ContentProject[]>([]);
@@ -353,11 +355,13 @@ export default function ContentStudioPage({ defaultTool = 'scriptwriter' }: { de
     }, 800);
 
     try {
-      const response = await apiClient.post(`/api/v1/workspaces/${activeWorkspace.id}/content`, {
-        title: newTitle,
-        topic: newTopic,
-        primaryGoal: newPrimaryGoal
-      });
+      const response = await generateContent(
+        user?.id || 'unknown-creator',
+        activeWorkspace.id,
+        newTitle,
+        newTopic,
+        newPrimaryGoal
+      );
 
       clearInterval(stepInterval);
       setGenerationStep(4);

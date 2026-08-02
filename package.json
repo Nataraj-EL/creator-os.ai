@@ -18,7 +18,8 @@
     "test:learning": "node --import tsx src/ai/middleware/tests/learning.test.ts",
     "test:trace": "node --import tsx src/ai/observability/tests/trace.test.ts",
     "test:runtime": "node --import tsx src/ai/evaluation/tests/runtime.test.ts",
-    "test:providers": "node --import tsx src/ai/providers/tests/providers.test.ts"
+    "test:providers": "node --import tsx src/ai/providers/tests/providers.test.ts",
+    "test:streaming": "node --import tsx src/ai/streaming/tests/streaming.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

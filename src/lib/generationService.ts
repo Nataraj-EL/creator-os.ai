@@ -28,8 +28,16 @@ import { MemoryRepositoryFactory } from '../ai/memory/storage/repositoryFactory'
 import { PromptBuilder, promptFeatureFlags } from '../ai/prompt';
 import { RetrievalService } from '../ai/retrieval';
 
+import { StreamRuntime, DefaultStreamAdapter, WordChunkingStrategy } from '../ai/streaming';
+
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
+
+export const streamRuntime = new StreamRuntime(
+  providerResolver,
+  new DefaultStreamAdapter(),
+  new WordChunkingStrategy()
+);
 
 // Ensure built-in middlewares are registered exactly once
 if (generationMiddlewareRunner.getMiddlewares().length === 0) {

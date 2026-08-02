@@ -11,6 +11,10 @@ import {
   experimentAnalyticsService
 } from '../../../ai/evaluation/runtime';
 import { 
+  featureFlags as streamFeatureFlags 
+} from '../../../ai/streaming';
+import { streamRuntime } from '../../../lib/generationService';
+import { 
   EvaluationRepositoryFactory 
 } from '../../../ai/evaluation/storage/repositoryFactory';
 import { 
@@ -126,8 +130,87 @@ export default function DeveloperEvaluationConsole() {
   const [inspectTab, setInspectTab] = useState<'parsed' | 'raw' | 'trace'>('parsed');
   const [activeTrace, setActiveTrace] = useState<any | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
-  const [consoleTab, setConsoleTab] = useState<'runs' | 'experiments'>('runs');
+  const [consoleTab, setConsoleTab] = useState<'runs' | 'experiments' | 'streaming'>('runs');
   const [experimentsAnalytics, setExperimentsAnalytics] = useState<any[]>([]);
+
+  // Streaming Sandbox States
+  const [streamPrompt, setStreamPrompt] = useState('Write a 3-step script hook for a tech review video.');
+  const [streamProvider, setStreamProvider] = useState('mock');
+  const [streamModel, setStreamModel] = useState('mock-model');
+  const [streamOutput, setStreamOutput] = useState('');
+  const [streamStatus, setStreamStatus] = useState<'idle' | 'active' | 'paused' | 'cancelled' | 'completed' | 'error'>('idle');
+  const [streamTokens, setStreamTokens] = useState(0);
+  const [streamLatency, setStreamLatency] = useState(0);
+  const [streamSession, setStreamSession] = useState<any>(null);
+  const [streamMetadata, setStreamMetadata] = useState<any>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
+
+  const startStreaming = async () => {
+    setStreamOutput('');
+    setStreamTokens(0);
+    setStreamLatency(0);
+    setStreamMetadata(null);
+    setStreamError(null);
+    setStreamStatus('active');
+
+    try {
+      const session = streamRuntime.createSession({
+        prompt: streamPrompt,
+        model: streamModel,
+        provider: streamProvider
+      }, {
+        traceId: 'trace-mw-' + Math.random().toString(36).substring(2, 9),
+        requestId: 'req-mw-' + Math.random().toString(36).substring(2, 9)
+      });
+
+      setStreamSession(session);
+
+      session.subscribe({
+        onEvent: (event: any) => {
+          if (event.type === 'token') {
+            setStreamOutput(prev => prev + event.content);
+            setStreamTokens(session.tokenCount);
+            setStreamLatency(Date.now() - session.startTime);
+          } else if (event.type === 'metadata') {
+            if (event.metadata?.streamId) {
+              setStreamMetadata(event.metadata);
+            }
+          } else if (event.type === 'completion') {
+            setStreamStatus('completed');
+          } else if (event.type === 'error') {
+            setStreamStatus('error');
+            setStreamError(event.content || 'Streaming error');
+          }
+        }
+      });
+
+      session.start();
+    } catch (err: any) {
+      setStreamStatus('error');
+      setStreamError(err.message || 'Failed to start session');
+    }
+  };
+
+  const cancelStreaming = () => {
+    if (streamSession) {
+      streamSession.cancel();
+      setStreamStatus('cancelled');
+    }
+  };
+
+  const pauseStreaming = () => {
+    if (streamSession) {
+      streamSession.pause();
+      setStreamStatus('paused');
+    }
+  };
+
+  const resumeStreaming = () => {
+    if (streamSession) {
+      streamSession.resume();
+      setStreamStatus('active');
+    }
+  };
   
   // Interactive Filters
   const [search, setSearch] = useState('');
@@ -551,6 +634,18 @@ export default function DeveloperEvaluationConsole() {
         >
           A/B Experiments Console
         </button>
+        {streamFeatureFlags.STREAM_UI && (
+          <button
+            onClick={() => setConsoleTab('streaming')}
+            className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
+              consoleTab === 'streaming' 
+                ? 'border-cyan-500 text-cyan-400 font-extrabold' 
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Streaming Sandbox
+          </button>
+        )}
       </div>
 
       {consoleTab === 'runs' && (
@@ -1241,6 +1336,162 @@ export default function DeveloperEvaluationConsole() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {consoleTab === 'streaming' && (
+        <div className="space-y-8 animate-fadeIn">
+          <div className="glass-card rounded-2xl p-6 border border-white/5 bg-white/[0.01]">
+            <h2 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-cyan-400" />
+              Streaming Sandbox Console
+            </h2>
+            <p className="text-xs text-zinc-400 mb-6">
+              Test real-time provider prompt token streams, abort cancellations, pause/resume session logs, and trace latency metrics.
+            </p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* INPUT CONTROLS */}
+              <div className="lg:col-span-1 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Prompt</label>
+                  <textarea
+                    value={streamPrompt}
+                    onChange={(e) => setStreamPrompt(e.target.value)}
+                    rows={4}
+                    className="w-full bg-white/[0.03] border border-white/[0.08] hover:border-white/20 focus:border-cyan-500/50 rounded-xl p-3.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all resize-none"
+                    placeholder="Enter prompt..."
+                    disabled={streamStatus === 'active' || streamStatus === 'paused'}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Provider</label>
+                    <select
+                      value={streamProvider}
+                      onChange={(e) => setStreamProvider(e.target.value)}
+                      className="w-full bg-zinc-900 border border-white/[0.08] hover:border-white/20 focus:border-cyan-500/50 rounded-xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all cursor-pointer"
+                      disabled={streamStatus === 'active' || streamStatus === 'paused'}
+                    >
+                      <option value="mock">mock (native stream)</option>
+                      <option value="non-streaming">non-streaming (fallback)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Model</label>
+                    <input
+                      type="text"
+                      value={streamModel}
+                      onChange={(e) => setStreamModel(e.target.value)}
+                      className="w-full bg-white/[0.03] border border-white/[0.08] hover:border-white/20 focus:border-cyan-500/50 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                      placeholder="model name..."
+                      disabled={streamStatus === 'active' || streamStatus === 'paused'}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col gap-2">
+                  {streamStatus === 'idle' || streamStatus === 'completed' || streamStatus === 'error' || streamStatus === 'cancelled' ? (
+                    <button
+                      onClick={startStreaming}
+                      className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-cyan-500/10 focus:outline-none"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-black" />
+                      Start Stream Generation
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      {streamStatus === 'active' ? (
+                        <button
+                          onClick={pauseStreaming}
+                          className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-4 rounded-xl text-xs cursor-pointer focus:outline-none transition-all"
+                        >
+                          Pause
+                        </button>
+                      ) : (
+                        <button
+                          onClick={resumeStreaming}
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 px-4 rounded-xl text-xs cursor-pointer focus:outline-none transition-all"
+                        >
+                          Resume
+                        </button>
+                      )}
+                      <button
+                        onClick={cancelStreaming}
+                        className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold py-3 px-4 rounded-xl text-xs cursor-pointer focus:outline-none transition-all border border-red-500/30"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* OUTPUT DISPLAY */}
+              <div className="lg:col-span-2 flex flex-col border border-white/5 rounded-2xl bg-black/20 overflow-hidden min-h-[300px]">
+                {/* Header Info Panel */}
+                <div className="flex justify-between items-center px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${
+                      streamStatus === 'active' ? 'bg-cyan-400 animate-pulse' :
+                      streamStatus === 'paused' ? 'bg-amber-400' :
+                      streamStatus === 'completed' ? 'bg-emerald-400' :
+                      streamStatus === 'cancelled' ? 'bg-zinc-500' :
+                      streamStatus === 'error' ? 'bg-red-500' : 'bg-zinc-700'
+                    }`} />
+                    <span className="text-xs font-mono text-zinc-300 capitalize">{streamStatus}</span>
+                  </div>
+                  <div className="flex gap-4 text-[10px] text-zinc-400 font-mono">
+                    <div>Tokens: <span className="text-cyan-400 font-bold">{streamTokens}</span></div>
+                    <div>Latency: <span className="text-cyan-400 font-bold">{streamLatency}ms</span></div>
+                  </div>
+                </div>
+
+                {/* Tokens Box */}
+                <div className="flex-1 p-5 text-sm font-mono text-zinc-200 overflow-y-auto leading-relaxed custom-scrollbar whitespace-pre-wrap select-text selection:bg-cyan-500/30 max-h-[400px]">
+                  {streamOutput || <span className="text-zinc-600 italic">Incremental tokens will render here...</span>}
+                  
+                  {streamStatus === 'active' && (
+                    <span className="inline-block w-1.5 h-4 bg-cyan-400 animate-pulse ml-0.5" />
+                  )}
+                </div>
+
+                {/* Footer Telemetry */}
+                {streamMetadata && (
+                  <div className="p-4 bg-white/[0.02] border-t border-white/5 text-[10px] text-zinc-500 font-mono grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <span className="block text-zinc-600">STREAM ID</span>
+                      <span className="text-zinc-400 font-semibold">{streamMetadata.streamId}</span>
+                    </div>
+                    <div>
+                      <span className="block text-zinc-600">1ST TOKEN LATENCY</span>
+                      <span className="text-zinc-400 font-semibold text-emerald-400">{streamMetadata.firstTokenLatency}ms</span>
+                    </div>
+                    <div>
+                      <span className="block text-zinc-600">COMPLETION LATENCY</span>
+                      <span className="text-zinc-400 font-semibold text-emerald-400">{streamMetadata.completionLatency}ms</span>
+                    </div>
+                    <div>
+                      <span className="block text-zinc-600">GENERATION SPEED</span>
+                      <span className="text-zinc-400 font-semibold">
+                        {streamMetadata.completionLatency > 0 
+                          ? Math.round((streamMetadata.tokenCount / (streamMetadata.completionLatency / 1000)) * 10) / 10 
+                          : 0} tokens/sec
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {streamError && (
+                  <div className="p-4 bg-red-500/5 text-xs text-red-400 border-t border-red-500/10 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{streamError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -206,16 +206,20 @@ export class MemoryExtractor {
       results.push(extractionResult);
 
       // Execute decision
-      if (decision === MemoryDecision.ACCEPT) {
-        // accepted candidates get stored in memory
+      if (
+        decision === MemoryDecision.ACCEPT ||
+        decision === MemoryDecision.UPDATE_EXISTING ||
+        decision === MemoryDecision.MERGE
+      ) {
+        // accepted/updated candidates get stored in memory
         await this.memoryService.store(context, candidate.content, [candidate.type.toLowerCase(), 'extracted'], candidate.type, {
           importance: candidate.importance,
           confidence: candidate.confidence,
           source: candidate.source,
-          metadata: { reasoning: candidate.reasoning }
+          metadata: { reasoning: candidate.reasoning, decision }
         });
 
-        this.emitEvent('MEMORY_ACCEPTED', context, { content: candidate.content, type: candidate.type });
+        this.emitEvent('MEMORY_ACCEPTED', context, { content: candidate.content, type: candidate.type, decision });
       } else {
         this.emitEvent('MEMORY_REJECTED', context, { content: candidate.content, decision, reason: policyResults.map(p => p.reason).join(' | ') });
       }

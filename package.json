@@ -14,7 +14,8 @@
     "test:context": "node --import tsx src/ai/context/tests/context.test.ts && node --import tsx src/ai/context/tests/integration.test.ts",
     "test:prompt": "node --import tsx src/ai/prompt/tests/integration.test.ts",
     "test:extraction": "node --import tsx src/ai/memory/extraction/tests/extraction.test.ts",
-    "test:retrieval": "node --import tsx src/ai/retrieval/tests/retrieval.test.ts"
+    "test:retrieval": "node --import tsx src/ai/retrieval/tests/retrieval.test.ts",
+    "test:learning": "node --import tsx src/ai/middleware/tests/learning.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

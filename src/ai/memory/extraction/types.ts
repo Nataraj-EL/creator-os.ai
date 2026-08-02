@@ -56,3 +56,34 @@ export interface ExtractionLifecycleEvent {
 }
 
 export type ExtractionLifecycleListener = (event: ExtractionLifecycleEvent) => void;
+
+// --- Sprint 13 Additions ---
+
+export interface MemoryLearningService {
+  learn(
+    context: MemoryContext,
+    prompt: string,
+    content: string,
+    metadata?: Record<string, any>
+  ): Promise<MemoryExtractionResult[]>;
+  addListener(listener: LearningLifecycleListener): void;
+  removeListener(listener: LearningLifecycleListener): void;
+}
+
+export interface MemoryLearningDispatcher {
+  dispatch(task: () => Promise<void>): void;
+}
+
+export type LearningLifecycleEventType = 
+  | 'MEMORY_LEARNING_STARTED'
+  | 'MEMORY_LEARNING_COMPLETED'
+  | 'MEMORY_LEARNING_FAILED';
+
+export interface LearningLifecycleEvent {
+  type: LearningLifecycleEventType;
+  timestamp: string;
+  context: MemoryContext;
+  details: Record<string, any>;
+}
+
+export type LearningLifecycleListener = (event: LearningLifecycleEvent) => void;

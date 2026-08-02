@@ -1,6 +1,80 @@
-# AI Memory Extraction Module (Sprint 10)
+# AI Memory Extraction & Automatic Learning Module (Sprint 10 & 13)
 
 The AI Memory Extraction module parses input contents (like creator chats or request payloads) to extract candidate memories, runs them through pluggable policies yielding structured evaluation scores, and routes them via an independent decision engine to resolve final memory states.
+
+In Sprint 13, this is integrated into the automatic learning pipeline, allowing completed generations to asynchronously update the long-term memory store.
+
+---
+
+## Complete Pipeline Architecture Flow
+
+The complete, end-to-end memory learning and semantic context retrieval lifecycle is organized as follows:
+
+```text
+       ┌────────────────────────────────────────────────────────┐
+       │               Content Generation Pipeline              │
+       └───────────────────────────┬────────────────────────────┘
+                                   │
+                     Invoke MemoryLearningMiddleware
+                                   │
+                                   ▼
+                       [MemoryLearningService]
+                     Enforce Idempotency Checks
+                      (skip if duplicate reqId)
+                                   │
+                                   ▼
+                      [MemoryLearningDispatcher]
+                     Dispatch to background queue
+                                   │
+       ┌───────────────────────────┴───────────────────────────┐
+       ▼ (Background Thread execution - fire-and-forget)       ▼ (Returns immediately)
+     [MemoryExtractor]                                     Complete Generation
+   Parse Prompt + Content                                  and Evaluation loops
+              │
+              ▼
+   Evaluate Policy Checks
+              │
+              ▼
+   [MemoryDecisionEngine]
+  Resolve: ACCEPT/UPDATE/MERGE
+              │
+              ▼
+       [MemoryService] ◄───────────────────────────────────────┐
+     Write to database / store                                 │
+              │                                                │
+              ▼                                                │
+    [RetrievalSearchService] ──────────────────────────┐       │
+  Query vectors & cosine similarities                  │       │
+              │                                        ▼       │
+              ▼                                   [Read/Write] │
+     [RetrievalAdapter]                       [Memory Provider / DB]
+   Translate results to ContextBlocks                  │
+              │                                        │
+              ▼                                        │
+      [ContextAssembly] ───────────────────────────────┘
+    Final deduplicated context block list
+```
+
+---
+
+## Automatic Learning Components (Sprint 13)
+
+### 1. Decoupled Memory Learning Service
+`MemoryLearningMiddleware` remains extremely thin. It only triggers learning by delegating to a `MemoryLearningService` interface:
+```typescript
+interface MemoryLearningService {
+  learn(context: MemoryContext, prompt: string, content: string, metadata?: Record<string, any>): Promise<MemoryExtractionResult[]>;
+}
+```
+
+### 2. Background Queue Dispatcher
+All extraction operations execute asynchronously inside a `MemoryLearningDispatcher` queue (defaulting to a `Promise.resolve().then()` thread dispatcher), preventing any delays or failures in content generation.
+
+### 3. Idempotency Safeguards
+`DefaultMemoryLearningService` tracks processed request and trace IDs in a size-limited cache to prevent duplicate extractions on repeated or retried generation requests.
+
+### 4. Custom Events Observability
+Learning pipelines emit `MEMORY_LEARNING_STARTED`, `MEMORY_LEARNING_COMPLETED`, and `MEMORY_LEARNING_FAILED` lifecycle events, detailing latency, decision counts, and stored contents.
 
 ---
 
@@ -13,7 +87,7 @@ The extractor generates candidate blocks, delegates evaluations to registered po
        │                Input Content (Sentence)                │
        └───────────────────────────┬────────────────────────────┘
                                    │
-                      Run Heuristics Regex Parser
+                       Run Heuristics Regex Parser
                                    │
                                    ▼
                    [CANDIDATE_CREATED] MemoryCandidate
@@ -30,7 +104,7 @@ The extractor generates candidate blocks, delegates evaluations to registered po
              └─────────────────────┬─────────────────────┘
                                    │
                                    ▼
-                      [MemoryDecisionEngine.resolve]
+                       [MemoryDecisionEngine.resolve]
                                    │
              ┌─────────────────────┼─────────────────────┐
              ▼ (ACCEPT)            ▼ (IGNORE)            ▼ (REJECT)
@@ -58,7 +132,7 @@ The decision-making rules are isolated in `DefaultMemoryDecisionEngine`:
 * **`ACCEPT`**: Stored in long-term memory via the `MemoryService`.
 * **`REJECT`**: Bypassed and logged with detailed policy rejection reasons.
 * **`IGNORE`**: Bypassed and discarded (used for duplicates to avoid log clutter).
-* **`UPDATE_EXISTING` / `MERGE`**: Reserved for future vector database partial similarity merges.
+* **`UPDATE_EXISTING` / `MERGE`**: Stored/updated in long-term memory.
 
 ---
 

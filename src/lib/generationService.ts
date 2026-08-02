@@ -4,6 +4,7 @@ import {
   TraceMiddleware, 
   TimingMiddleware, 
   LoggingMiddleware, 
+  MemoryLearningMiddleware,
   EvaluationMiddleware 
 } from '../ai/middleware/builtins';
 import { evaluationService } from '../ai/evaluation/services';
@@ -23,6 +24,7 @@ if (generationMiddlewareRunner.getMiddlewares().length === 0) {
   generationMiddlewareRunner.use(new TraceMiddleware());
   generationMiddlewareRunner.use(new TimingMiddleware());
   generationMiddlewareRunner.use(new LoggingMiddleware());
+  generationMiddlewareRunner.use(new MemoryLearningMiddleware());
   generationMiddlewareRunner.use(new EvaluationMiddleware(evaluationService));
 }
 

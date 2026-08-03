@@ -31,7 +31,8 @@
     "test:policy": "node --import tsx src/ai/policy/tests/runtime.test.ts",
     "test:plugins": "node --import tsx src/ai/plugins/tests/runtime.test.ts",
     "test:distributed": "node --import tsx src/ai/distributed/tests/runtime.test.ts",
-    "test:tenant": "node --import tsx src/ai/tenant/tests/runtime.test.ts"
+    "test:tenant": "node --import tsx src/ai/tenant/tests/runtime.test.ts",
+    "test:config": "node --import tsx src/ai/config/tests/runtime.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

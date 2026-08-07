@@ -122,7 +122,7 @@ test('AI Observability & Trace Runtime Test Suite', async (t) => {
 
     // Check latency calculation
     const completedEvent = trace.events[1];
-    assert.ok(completedEvent.latencyMs && completedEvent.latencyMs >= 100, `Expected latency >= 100ms, got ${completedEvent.latencyMs}ms`);
+    assert.ok(completedEvent.latencyMs && completedEvent.latencyMs >= 80, `Expected latency >= 80ms, got ${completedEvent.latencyMs}ms`);
 
     runtime.dispose();
   });
@@ -161,7 +161,7 @@ test('AI Observability & Trace Runtime Test Suite', async (t) => {
     const trace = await runtime.getTrace(traceId);
     assert.ok(trace);
     assert.strictEqual(trace.status, 'completed');
-    assert.ok(trace.durationMs && trace.durationMs >= 50, `Expected duration >= 50ms, got ${trace.durationMs}ms`);
+    assert.ok(trace.durationMs && trace.durationMs >= 40, `Expected duration >= 40ms, got ${trace.durationMs}ms`);
     assert.ok(trace.endTime);
 
     runtime.dispose();

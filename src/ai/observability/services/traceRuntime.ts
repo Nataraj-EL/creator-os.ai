@@ -6,6 +6,7 @@ import {
   TraceService, 
   TraceEventBus 
 } from '../types';
+import { LangfuseTraceProvider } from '../providers/langfuse';
 
 export class DefaultTraceEventBus implements TraceEventBus {
   private listeners: Set<(event: TraceEvent) => void> = new Set();
@@ -179,3 +180,4 @@ export class TraceRuntime implements TraceService {
 }
 
 export const traceRuntime = new TraceRuntime(new HybridTraceStore());
+export const langfuseTraceProvider = new LangfuseTraceProvider(traceEventBus);

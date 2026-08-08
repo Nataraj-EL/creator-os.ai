@@ -41,7 +41,8 @@
     "test:bullmq-smoke": "node --import tsx src/ai/distributed/tests/smoke.test.ts",
     "test:durable-workflow": "node --import tsx src/ai/workflow/tests/durablePersistence.test.ts",
     "test:mcp-production": "node --import tsx src/ai/mcp/tests/production.test.ts",
-    "test:workflow-integration": "node --import tsx src/ai/workflow/tests/integration.test.ts"
+    "test:workflow-integration": "node --import tsx src/ai/workflow/tests/integration.test.ts",
+    "test:generation-integration": "node --import tsx src/ai/workflow/tests/generationIntegration.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

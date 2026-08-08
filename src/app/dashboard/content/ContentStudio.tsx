@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../../lib/store';
 import { apiClient } from '../../../lib/api-client';
-import { generateContent } from '../../../lib/generationService';
+import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Video, FileText, Loader2, Wand2, Search, Filter, 
@@ -360,13 +360,18 @@ export function ContentStudioPage(props: {
     }, 800);
 
     try {
-      const response = await generateContent(
-        user?.id || 'unknown-creator',
-        activeWorkspace.id,
-        newTitle,
-        newTopic,
-        newPrimaryGoal
-      );
+      const accessToken = useAuthStore.getState().accessToken;
+      const response = await axios.post('/api/content/generate', {
+        creatorId: user?.id || 'unknown-creator',
+        workspaceId: activeWorkspace.id,
+        title: newTitle,
+        topic: newTopic,
+        primaryGoal: newPrimaryGoal
+      }, {
+        headers: {
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+        }
+      });
 
       clearInterval(stepInterval);
       setGenerationStep(4);

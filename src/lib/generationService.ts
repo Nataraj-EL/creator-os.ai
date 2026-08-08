@@ -163,11 +163,12 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
 
     const config: Record<string, any> = {};
 
-    // Propagate requestId and traceId internally as optional trace headers
-    if (context.requestId || context.traceId) {
+    // Propagate requestId, traceId, and Authorization internally
+    if (context.requestId || context.traceId || context.metadata?.authorization) {
       config.headers = {
         'X-Request-Id': context.requestId,
-        'X-Trace-Id': context.traceId
+        'X-Trace-Id': context.traceId,
+        ...(context.metadata?.authorization ? { 'Authorization': context.metadata.authorization } : {})
       };
     }
 

@@ -14,6 +14,7 @@ import { DefaultEvaluationLogger } from '../utils/logger';
 import { ProviderError } from '../utils/errors';
 import { EvaluationRepositoryFactory } from '../storage/repositoryFactory';
 import { traceEventBus } from '../../observability';
+import { calculateDecision } from '../utils/decision';
 
 export class DefaultEvaluationService implements IEvaluationService {
   private registry = evaluationRegistry;
@@ -89,8 +90,48 @@ export class DefaultEvaluationService implements IEvaluationService {
       const result = await provider.execute(context, config);
       const latencyMs = Date.now() - startTime;
       
+      const relevanceVal = result.metrics.find(m => m.metricId === 'relevance')?.score;
+      const groundingVal = result.metrics.find(m => m.metricId === 'grounding' || m.metricId === 'faithfulness')?.score;
+      const responseQualityVal = result.metrics.find(m => m.metricId === 'responseQuality')?.score;
+      const contextUsageVal = result.metrics.find(m => m.metricId === 'contextUsage')?.score;
+      const llmJudgeVal = result.overallScore;
+
+      const scores: any = {};
+      const expected: any[] = [];
+
+      if (relevanceVal !== undefined) {
+        scores.relevance = relevanceVal;
+        expected.push('relevance');
+      }
+      if (groundingVal !== undefined) {
+        scores.grounding = groundingVal;
+        expected.push('grounding');
+      }
+      if (responseQualityVal !== undefined) {
+        scores.responseQuality = responseQualityVal;
+        expected.push('responseQuality');
+      }
+      if (contextUsageVal !== undefined) {
+        scores.contextUsage = contextUsageVal;
+        expected.push('contextUsage');
+      }
+      if (llmJudgeVal !== undefined) {
+        scores.llmJudge = llmJudgeVal;
+        expected.push('llmJudge');
+      }
+
+      const customThresh: any = {};
+      if (config?.thresholds) {
+        for (const [k, v] of Object.entries(config.thresholds)) {
+          customThresh[k] = { fail: v, warn: (config.thresholds as any)[k + '_warn'] ?? (v + 20) };
+        }
+      }
+
+      const decision = calculateDecision(scores, expected, customThresh);
+
       const enrichedResult: EvaluationResult = {
         ...result,
+        decision,
         latencyMs
       };
 
@@ -111,7 +152,18 @@ export class DefaultEvaluationService implements IEvaluationService {
         stage: 'evaluation',
         component: 'EvaluationService',
         status: 'completed',
-        metadata: { status: enrichedResult.status, overallScore: enrichedResult.overallScore }
+        metadata: { 
+          status: enrichedResult.status, 
+          overallScore: enrichedResult.overallScore,
+          decision: enrichedResult.decision,
+          metrics: enrichedResult.metrics.reduce((acc, m) => {
+            acc[m.metricId] = m.score;
+            return acc;
+          }, {} as Record<string, number>),
+          provider: context.provider,
+          model: context.model,
+          latencyMs: enrichedResult.latencyMs
+        }
       });
 
       return enrichedResult;

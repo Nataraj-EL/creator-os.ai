@@ -23,3 +23,19 @@ export class ValidationError extends EvaluationError {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+export class QualityGateError extends EvaluationError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'QualityGateError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class EvaluationRuntimeError extends EvaluationError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EvaluationRuntimeError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

@@ -8,6 +8,8 @@ import {
 } from '../types';
 import { EvaluationService } from '../../evaluation/types';
 import { traceEventBus } from '../../observability';
+import { featureFlags as evalFeatureFlags } from '../../evaluation/config/featureFlags';
+import { QualityGateError, EvaluationRuntimeError } from '../../evaluation/utils/errors';
 
 // 1. Trace Middleware
 export class TraceMiddleware implements AIMiddleware {
@@ -151,12 +153,46 @@ export class EvaluationMiddleware implements AIMiddleware {
         }
       };
 
-      // Run evaluation asynchronously without blocking client thread response
-      this.evaluationService.evaluate(evalContext).catch(err => {
-        console.error("[AI-MW] Asynchronous evaluation trigger failed:", err);
-      });
+      const blockOnFail = evalFeatureFlags.BLOCK_ON_FAIL;
+      const strictEval = evalFeatureFlags.STRICT_EVALUATION;
 
-    } catch (e) {
+      if (blockOnFail || strictEval) {
+        let result;
+        try {
+          result = await this.evaluationService.evaluate(evalContext);
+        } catch (err: any) {
+          context.metadata.evaluationCompleted = true;
+          if (strictEval) {
+            throw new EvaluationRuntimeError(`Evaluation failed: ${err.message}`);
+          }
+          return; // fail-open
+        }
+        context.metadata.evaluationCompleted = true;
+
+        if (result.status === 'FAILED') {
+          if (strictEval) {
+            throw new EvaluationRuntimeError(`Evaluation failed: ${result.errorMessage || 'Unknown error'}`);
+          }
+        } else if (result.decision === 'FAIL') {
+          if (blockOnFail) {
+            throw new QualityGateError(`Quality gate failed: Score ${result.overallScore} is below thresholds.`);
+          }
+        }
+      } else {
+        // Run evaluation asynchronously without blocking client thread response
+        this.evaluationService.evaluate(evalContext)
+          .then(() => {
+            context.metadata.evaluationCompleted = true;
+          })
+          .catch(err => {
+            console.error("[AI-MW] Asynchronous evaluation trigger failed:", err);
+          });
+      }
+
+    } catch (e: any) {
+      if (e instanceof QualityGateError || e instanceof EvaluationRuntimeError) {
+        throw e;
+      }
       console.error("[AI-MW] Failed to prepare evaluation parameters:", e);
     }
   }

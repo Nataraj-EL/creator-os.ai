@@ -4,6 +4,7 @@ import {
   EvaluationWeights, 
   EvaluationSuiteResult 
 } from './types';
+import { calculateDecision } from '../utils/decision';
 
 export class RelevanceEvaluator implements Evaluator {
   public name = 'relevance';
@@ -244,6 +245,20 @@ export class DefaultEvaluationRunner {
 
     const overallScore = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
 
+    const suiteScores = {
+      relevance: results['relevance']?.score,
+      grounding: results['grounding']?.score,
+      responseQuality: results['responseQuality']?.score,
+      contextUsage: results['contextUsage']?.score
+    };
+    const suiteExpected: any[] = [];
+    if (results['relevance'] !== undefined) suiteExpected.push('relevance');
+    if (results['grounding'] !== undefined) suiteExpected.push('grounding');
+    if (results['responseQuality'] !== undefined) suiteExpected.push('responseQuality');
+    if (results['contextUsage'] !== undefined) suiteExpected.push('contextUsage');
+
+    const decision = calculateDecision(suiteScores, suiteExpected);
+
     return {
       suiteId,
       traceId: context.traceId,
@@ -252,6 +267,7 @@ export class DefaultEvaluationRunner {
       overallScore,
       status: 'completed',
       results,
+      decision,
       metadata: { weights: { ...this.weights } },
       createdAt: new Date().toISOString()
     };

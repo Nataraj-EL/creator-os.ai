@@ -7,6 +7,8 @@ export interface EvaluationFeatureFlags {
   EVALUATION_RUNTIME: boolean;
   AUTO_EVALUATION: boolean;
   EXPERIMENTS_ENABLED: boolean;
+  STRICT_EVALUATION: boolean;
+  BLOCK_ON_FAIL: boolean;
 }
 
 export const featureFlags: EvaluationFeatureFlags = {
@@ -18,4 +20,6 @@ export const featureFlags: EvaluationFeatureFlags = {
   EVALUATION_RUNTIME: false,
   AUTO_EVALUATION: false,
   EXPERIMENTS_ENABLED: false,
+  STRICT_EVALUATION: false,
+  BLOCK_ON_FAIL: false,
 };

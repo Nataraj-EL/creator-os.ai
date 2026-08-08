@@ -44,12 +44,15 @@ export interface ProviderMetadata {
   capabilities: string[];
 }
 
+export type EvaluationDecision = 'PASS' | 'WARN' | 'FAIL';
+
 export interface EvaluationResult {
   evaluationId: string;
   context: EvaluationContext;
   status: EvaluationStatus;
   metrics: EvaluationMetric[];
   overallScore: number;
+  decision?: EvaluationDecision;
   latencyMs: number;
   errorMessage?: string;
   createdAt: string;

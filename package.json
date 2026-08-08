@@ -45,7 +45,8 @@
     "test:generation-integration": "node --import tsx src/ai/workflow/tests/generationIntegration.test.ts",
     "test:reliability": "node --import tsx src/ai/observability/tests/reliability.test.ts",
     "test:security": "node --import tsx src/ai/observability/tests/security.test.ts",
-    "test:rbac": "node --import tsx src/ai/observability/tests/rbac.test.ts"
+    "test:rbac": "node --import tsx src/ai/observability/tests/rbac.test.ts",
+    "test:eval-gate": "node --import tsx src/ai/evaluation/tests/qualityGate.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

@@ -1,3 +1,5 @@
+import { EvaluationDecision } from '../types';
+
 export interface EvaluatorResult {
   name: string;
   score: number; // 0 to 100
@@ -25,6 +27,7 @@ export interface EvaluationSuiteResult {
   overallScore: number;
   status: 'completed' | 'failed';
   results: Record<string, EvaluatorResult>; // Map of evaluator name -> result
+  decision?: EvaluationDecision;
   metadata: Record<string, any>;
   createdAt: string;
 }

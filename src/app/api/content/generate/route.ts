@@ -111,10 +111,15 @@ export async function POST(request: Request) {
     return NextResponse.json(result.data);
   } catch (err: any) {
     console.error("[Server Generation Route] execution failed:", err.message);
-    const isTimeout = err.message.includes('timed out') || err.message.includes('timeout');
+    const isQualityGate = err.name === 'QualityGateError' || err.message.includes('Quality gate failed');
+    const isEvalRuntime = err.name === 'EvaluationRuntimeError' || err.message.includes('Evaluation failed');
+    const isTimeout = !isEvalRuntime && (err.message.includes('timed out') || err.message.includes('timeout'));
     const isPolicy = err.name === 'PolicyError' || err.message.includes('Policy Denied');
     
-    const code = isTimeout ? 504 : (isPolicy ? 403 : 500);
+    let code = 500;
+    if (isTimeout) code = 504;
+    else if (isPolicy) code = 403;
+    else if (isQualityGate) code = 422;
     
     // Normalize and sanitize error message (never expose internal secrets or stack dumps)
     let displayMessage = "An error occurred during content generation.";
@@ -122,6 +127,8 @@ export async function POST(request: Request) {
       displayMessage = `Request timed out. Please try again.`;
     } else if (isPolicy) {
       displayMessage = err.message;
+    } else if (isQualityGate) {
+      displayMessage = "Content quality gate check failed.";
     }
     
     return NextResponse.json(

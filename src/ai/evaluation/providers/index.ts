@@ -53,6 +53,9 @@ export class LlmJudgeProvider implements EvaluationProvider {
     let baseDelay = 500; // ms
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       try {
         let response: Response;
         
@@ -70,7 +73,8 @@ export class LlmJudgeProvider implements EvaluationProvider {
               generationConfig: {
                 responseMimeType: 'application/json'
               }
-            })
+            }),
+            signal: controller.signal
           });
         } else if (pLower.includes('groq') || mLower.includes('llama') || mLower.includes('mixtral')) {
           const url = 'https://api.groq.com/openai/v1/chat/completions';
@@ -87,11 +91,14 @@ export class LlmJudgeProvider implements EvaluationProvider {
                 { role: 'user', content: userPrompt }
               ],
               response_format: { type: 'json_object' }
-            })
+            }),
+            signal: controller.signal
           });
         } else {
           throw new ProviderError(this.metadata.name, `Unsupported LLM judge provider: ${provider} (model: ${model})`);
         }
+
+        clearTimeout(timeoutId);
 
         // Handle errors
         if (!response.ok) {
@@ -124,8 +131,14 @@ export class LlmJudgeProvider implements EvaluationProvider {
         return textResult.trim();
 
       } catch (err: any) {
+        clearTimeout(timeoutId);
+        const isTimeout = err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('aborted');
+        const displayErr = isTimeout 
+          ? new ProviderError(this.metadata.name, `Upstream call timed out after 5000ms.`)
+          : (err instanceof ProviderError ? err : new ProviderError(this.metadata.name, err.message));
+
         if (attempt === maxAttempts) {
-          throw err instanceof ProviderError ? err : new ProviderError(this.metadata.name, err.message);
+          throw displayErr;
         }
         const delay = baseDelay * Math.pow(2, attempt - 1);
         await new Promise(r => setTimeout(r, delay));
@@ -154,10 +167,21 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
     const rawJsonText = await this.callLlmWithBackoff(providerName, model, systemPrompt, userPrompt);
     
-    // Parse JSON
+    // Parse JSON with cleaning
     let parsed: any;
+    let cleanedText = rawJsonText.trim();
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.substring(7);
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.substring(3);
+    }
+    if (cleanedText.endsWith('```')) {
+      cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+    }
+    cleanedText = cleanedText.trim();
+
     try {
-      parsed = JSON.parse(rawJsonText);
+      parsed = JSON.parse(cleanedText);
     } catch (e: any) {
       throw new ValidationError(`LLM Judge output did not return valid JSON: ${e.message}. Raw output: ${rawJsonText}`);
     }
@@ -165,8 +189,8 @@ export class LlmJudgeProvider implements EvaluationProvider {
     // Verify metrics exist in JSON
     const requiredMetrics = ['relevance', 'faithfulness', 'creatorVoice', 'platformSuitability', 'engagement', 'readability', 'actionability'];
     for (const metricKey of requiredMetrics) {
-      if (!parsed[metricKey] || typeof parsed[metricKey].score !== 'number') {
-        throw new ValidationError(`LLM Judge JSON response is missing metric block for: ${metricKey}`);
+      if (!parsed[metricKey] || typeof parsed[metricKey].score !== 'number' || isNaN(parsed[metricKey].score)) {
+        throw new ValidationError(`LLM Judge JSON response is missing or has invalid metric block for: ${metricKey}`);
       }
     }
 
@@ -184,7 +208,11 @@ export class LlmJudgeProvider implements EvaluationProvider {
     const evaluationMetrics: EvaluationMetric[] = [];
     for (const [key, details] of Object.entries(metricsWeights)) {
       const rawMetric = parsed[key];
-      const normalizedScore = Math.min(100, Math.max(0, rawMetric.score * 10)); // Scale 0-10 to 0-100
+      let scoreVal = rawMetric.score;
+      if (scoreVal <= 10) {
+        scoreVal = scoreVal * 10;
+      }
+      const normalizedScore = Math.min(100, Math.max(0, scoreVal));
       const confidence = typeof rawMetric.confidence === 'number' ? rawMetric.confidence : (parsed.confidence || 0.90);
       
       let status: 'pass' | 'fail' | 'warning' = 'pass';

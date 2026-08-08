@@ -21,6 +21,10 @@ export class EvaluationRuntimeMiddleware implements AIMiddleware {
   }
 
   public async after(context: AIContext, request: AIRequest, response: AIResponse): Promise<void> {
+    if (context.metadata?.evaluationCompleted) {
+      return;
+    }
+
     if (!featureFlags.EVALUATION_RUNTIME || !featureFlags.AUTO_EVALUATION) {
       return;
     }

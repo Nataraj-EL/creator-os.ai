@@ -96,13 +96,17 @@ export class WorkflowRuntime {
     const definition = this.registry.resolve(workflowId, version);
     const executionId = `exec-${Math.random().toString(36).substring(7)}`;
 
+    const variables = inputVariables || {};
+    if (!variables.tenantId) variables.tenantId = 'tenant-test';
+    if (!variables.workspaceId) variables.workspaceId = 'workspace-test';
+
     const execution: WorkflowExecution = {
       executionId,
       workflowId,
       workflowVersion: definition.version,
       status: 'RUNNING',
       currentStepId: definition.startStepId,
-      variables: inputVariables || {},
+      variables,
       completedSteps: {},
       errors: {},
       startTime: new Date().toISOString(),
@@ -121,9 +125,12 @@ export class WorkflowRuntime {
   public async resumeWorkflow(
     executionId: string,
     resumePayload?: any,
-    policy?: WorkflowExecutionPolicy
+    policy?: WorkflowExecutionPolicy,
+    context?: { tenantId?: string; workspaceId?: string }
   ): Promise<WorkflowExecution> {
-    const execution = await this.persistenceStore.getExecution(executionId);
+    const tenantId = context?.tenantId || 'tenant-test';
+    const workspaceId = context?.workspaceId || 'workspace-test';
+    const execution = await this.persistenceStore.getExecution(executionId, tenantId, workspaceId);
     if (!execution) {
       throw new Error(`Execution "${executionId}" not found for resumption.`);
     }

@@ -61,6 +61,8 @@ export class DistributedRuntime {
         workflowId: metadata.workflowId,
         agentId: metadata.agentId,
         creatorId: metadata.creatorId,
+        tenantId: metadata.tenantId || 'tenant-test',
+        workspaceId: metadata.workspaceId || 'workspace-test',
         priority,
         tags: metadata.tags || [],
         attempts: 0

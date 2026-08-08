@@ -24,8 +24,12 @@ export class PgVectorMemoryRepository implements MemoryRepository {
       const vector = await this.embeddingProvider.embed(record.content);
       const vectorStr = `[${vector.join(',')}]`;
 
-      const tenantId = record.metadata?.tenantId || 'default';
-      const workspaceId = record.metadata?.workspaceId || 'default';
+      const tenantId = record.metadata?.tenantId;
+      const workspaceId = record.metadata?.workspaceId;
+
+      if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+        throw new Error("Missing or unauthorized tenant/workspace context in memory record metadata.");
+      }
 
       const sql = `
         INSERT INTO ai_memories (
@@ -80,8 +84,12 @@ export class PgVectorMemoryRepository implements MemoryRepository {
       const vector = await this.embeddingProvider.embed(record.content);
       const vectorStr = `[${vector.join(',')}]`;
 
-      const tenantId = record.metadata?.tenantId || 'default';
-      const workspaceId = record.metadata?.workspaceId || 'default';
+      const tenantId = record.metadata?.tenantId;
+      const workspaceId = record.metadata?.workspaceId;
+
+      if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+        throw new Error("Missing or unauthorized tenant/workspace context in memory record metadata.");
+      }
 
       const sql = `
         UPDATE ai_memories SET
@@ -140,8 +148,12 @@ export class PgVectorMemoryRepository implements MemoryRepository {
 
   public async query(query: MemoryQuery): Promise<MemoryRecord[]> {
     try {
-      const tenantId = query.metadataFilters?.tenantId || 'default';
-      const workspaceId = query.metadataFilters?.workspaceId || 'default';
+      const tenantId = query.metadataFilters?.tenantId;
+      const workspaceId = query.metadataFilters?.workspaceId;
+      
+      if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+        throw new Error("Missing or unauthorized tenant/workspace context in memory query.");
+      }
       const limit = query.limit || 10;
 
       let sql = '';

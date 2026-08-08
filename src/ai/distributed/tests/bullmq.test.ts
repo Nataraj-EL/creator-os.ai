@@ -111,7 +111,7 @@ test('Distributed Redis/BullMQ Queue Test Suite', async (t) => {
       type: 'AGENT',
       payload: { workspaceId: 'ws-1', tenantId: 't-1', text: 'low task' },
       status: 'QUEUED',
-      metadata: { priority: 1, attempts: 0 },
+      metadata: { priority: 1, attempts: 0, tenantId: 'tenant-test', workspaceId: 'workspace-test' },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -122,7 +122,7 @@ test('Distributed Redis/BullMQ Queue Test Suite', async (t) => {
       type: 'AGENT',
       payload: { workspaceId: 'ws-1', tenantId: 't-1', text: 'high task' },
       status: 'QUEUED',
-      metadata: { priority: 10, attempts: 0 },
+      metadata: { priority: 10, attempts: 0, tenantId: 'tenant-test', workspaceId: 'workspace-test' },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -155,7 +155,7 @@ test('Distributed Redis/BullMQ Queue Test Suite', async (t) => {
       type: 'EVALUATION',
       payload: { workspaceId: 'ws-1', tenantId: 't-1' },
       status: 'QUEUED',
-      metadata: { priority: 5, attempts: 0 },
+      metadata: { priority: 5, attempts: 0, tenantId: 'tenant-test', workspaceId: 'workspace-test' },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -186,7 +186,7 @@ test('Distributed Redis/BullMQ Queue Test Suite', async (t) => {
       type: 'WORKFLOW',
       payload: { workspaceId: 'ws-1' },
       status: 'QUEUED',
-      metadata: { priority: 5, attempts: 0 },
+      metadata: { priority: 5, attempts: 0, tenantId: 'tenant-test', workspaceId: 'workspace-test' },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -210,7 +210,7 @@ test('Distributed Redis/BullMQ Queue Test Suite', async (t) => {
       type: 'TOOL',
       payload: {},
       status: 'QUEUED',
-      metadata: { priority: 5, attempts: 0 },
+      metadata: { priority: 5, attempts: 0, tenantId: 'tenant-test', workspaceId: 'workspace-test' },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -239,7 +239,7 @@ test('Distributed Redis/BullMQ Queue Test Suite', async (t) => {
       type: 'AGENT',
       payload: {},
       status: 'QUEUED',
-      metadata: { priority: 5, attempts: 0 },
+      metadata: { priority: 5, attempts: 0, tenantId: 'tenant-test', workspaceId: 'workspace-test' },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

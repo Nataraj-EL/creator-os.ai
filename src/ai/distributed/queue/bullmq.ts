@@ -56,6 +56,10 @@ export class BullMQQueueAdapter implements QueueAdapter {
       return this.fallback.enqueue(job);
     }
 
+    if (!job.metadata.tenantId || job.metadata.tenantId === 'default' || !job.metadata.workspaceId || job.metadata.workspaceId === 'default') {
+      throw new Error("Missing or unauthorized tenant/workspace context in job metadata.");
+    }
+
     try {
       job.status = 'QUEUED';
       job.updatedAt = new Date().toISOString();

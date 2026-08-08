@@ -39,6 +39,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized: Missing user identity in token." }, { status: 401 });
     }
 
+    const tenantId = payload.tenantId || payload.tenant;
+    if (!tenantId || tenantId === 'default') {
+      return NextResponse.json({ error: "Unauthorized: Missing or unauthorized tenant context." }, { status: 401 });
+    }
+
     let body: any;
     try {
       body = JSON.parse(rawBody);
@@ -96,6 +101,7 @@ export async function POST(request: Request) {
         authorization: authHeader,
         traceId,
         requestId,
+        tenantId,
         signal: controller.signal
       }
     );

@@ -23,7 +23,6 @@ export class MemoryRuntime implements MemoryService {
     this.repository = repository;
   }
 
-  // Event callbacks registry
   public addListener(listener: MemoryLifecycleListener): void {
     this.listeners.add(listener);
   }
@@ -40,7 +39,6 @@ export class MemoryRuntime implements MemoryService {
       details
     };
     
-    // Structured console logger
     console.log(`[${event.timestamp}] [AI-MEM] [${type}] context: ${JSON.stringify(context)}, details: ${JSON.stringify(details)}`);
 
     for (const listener of this.listeners) {
@@ -50,6 +48,15 @@ export class MemoryRuntime implements MemoryService {
         console.error("[AI-MEM] Lifecycle event listener threw error:", e);
       }
     }
+  }
+
+  private validateContext(context: MemoryContext) {
+    const tenantId = context.metadata?.tenantId;
+    const workspaceId = context.metadata?.workspaceId;
+    if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+      throw new Error("Missing or unauthorized tenant/workspace context in memory operation.");
+    }
+    return { tenantId, workspaceId };
   }
 
   // 1. Store memory record
@@ -67,6 +74,8 @@ export class MemoryRuntime implements MemoryService {
       metadata?: Record<string, any>;
     }
   ): Promise<MemoryRecord | null> {
+    const { tenantId, workspaceId } = this.validateContext(context);
+
     traceEventBus.publish({
       traceId: context.sessionId || '',
       requestId: context.requestId || '',
@@ -102,18 +111,20 @@ export class MemoryRuntime implements MemoryService {
       lastAccessed: timestamp,
       accessCount: 0,
       expiresAt: options?.expiresAt,
-      metadata: options?.metadata || {},
+      metadata: {
+        ...options?.metadata,
+        tenantId,
+        workspaceId
+      },
       createdAt: timestamp,
       updatedAt: timestamp
     };
 
-    // Store in active provider
     const provider = this.registry.defaultProvider();
     if (provider) {
       await provider.store(record);
     }
 
-    // Save in repository
     if (this.repository) {
       await this.repository.save(record);
     }
@@ -134,6 +145,8 @@ export class MemoryRuntime implements MemoryService {
 
   // 2. Retrieve single memory record
   public async retrieve(context: MemoryContext, id: string): Promise<MemoryRecord | null> {
+    const { tenantId, workspaceId } = this.validateContext(context);
+
     if (!memoryFeatureFlags.MEMORY_ENABLED || !memoryFeatureFlags.MEMORY_READ) {
       console.warn("[AI-MEM] Retrieve skipped: Memory read features disabled by feature flags.");
       return null;
@@ -141,7 +154,6 @@ export class MemoryRuntime implements MemoryService {
 
     let record: MemoryRecord | null = null;
 
-    // Load from provider or repository
     const provider = this.registry.defaultProvider();
     if (provider) {
       record = await provider.retrieve(id);
@@ -152,7 +164,13 @@ export class MemoryRuntime implements MemoryService {
     }
 
     if (record) {
-      // Increment access details
+      // Validate context limits to block cross-tenant lookups
+      const recordTenant = record.metadata?.tenantId || (record as any).tenantId || 'default';
+      const recordWorkspace = record.metadata?.workspaceId || (record as any).workspaceId || 'default';
+      if (recordTenant !== tenantId || recordWorkspace !== workspaceId) {
+        return null;
+      }
+
       record.accessCount += 1;
       record.lastAccessed = new Date().toISOString();
 
@@ -174,6 +192,8 @@ export class MemoryRuntime implements MemoryService {
     id: string, 
     updates: Partial<Pick<MemoryRecord, 'content' | 'tags' | 'importance' | 'confidence' | 'metadata'>>
   ): Promise<MemoryRecord | null> {
+    this.validateContext(context);
+
     if (!memoryFeatureFlags.MEMORY_ENABLED || !memoryFeatureFlags.MEMORY_WRITE) {
       console.warn("[AI-MEM] Update skipped: Memory write features disabled by feature flags.");
       return null;
@@ -184,7 +204,6 @@ export class MemoryRuntime implements MemoryService {
       return null;
     }
 
-    // Apply partial updates
     if (updates.content !== undefined) record.content = updates.content;
     if (updates.tags !== undefined) record.tags = updates.tags;
     if (updates.importance !== undefined) record.importance = updates.importance;
@@ -207,8 +226,16 @@ export class MemoryRuntime implements MemoryService {
 
   // 4. Delete memory record
   public async delete(context: MemoryContext, id: string): Promise<boolean> {
+    this.validateContext(context);
+
     if (!memoryFeatureFlags.MEMORY_ENABLED || !memoryFeatureFlags.MEMORY_WRITE) {
       console.warn("[AI-MEM] Delete skipped: Memory write features disabled by feature flags.");
+      return false;
+    }
+
+    // Verify context matches before deletion
+    const record = await this.retrieve(context, id);
+    if (!record) {
       return false;
     }
 
@@ -225,8 +252,10 @@ export class MemoryRuntime implements MemoryService {
     return true;
   }
 
-  // 5. Search memories (relevance-ranked result lists)
+  // 5. Search memories
   public async search(context: MemoryContext, query: Omit<MemoryQuery, 'creatorId'>): Promise<MemoryRecord[]> {
+    const { tenantId, workspaceId } = this.validateContext(context);
+
     traceEventBus.publish({
       traceId: context.sessionId || '',
       requestId: context.requestId || '',
@@ -251,7 +280,12 @@ export class MemoryRuntime implements MemoryService {
 
     const fullQuery: MemoryQuery = {
       ...query,
-      creatorId: context.userId
+      creatorId: context.userId,
+      metadataFilters: {
+        ...query.metadataFilters,
+        tenantId,
+        workspaceId
+      }
     };
 
     let results: MemoryRecord[] = [];
@@ -263,7 +297,6 @@ export class MemoryRuntime implements MemoryService {
       results = await this.repository.query(fullQuery);
     }
 
-    // Sort results by relevanceScore descending if present
     const rankedResults = [...results].sort((a, b) => {
       const scoreA = a.relevanceScore ?? 0;
       const scoreB = b.relevanceScore ?? 0;

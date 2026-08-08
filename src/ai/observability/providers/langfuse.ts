@@ -1,6 +1,7 @@
 import { Langfuse } from 'langfuse';
 import { TraceEvent, TraceEventBus } from '../types';
 import { featureFlags } from '../config/featureFlags';
+import crypto from 'crypto';
 
 export class LangfuseTraceProvider {
   private langfuse?: Langfuse;
@@ -168,11 +169,24 @@ export class LangfuseTraceProvider {
       'privatekey', 
       'credentials'
     ];
+
+    const hashKeys = [
+      'tenantid',
+      'workspaceid',
+      'tenant_id',
+      'workspace_id'
+    ];
     
     for (const key of Object.keys(scrubbed)) {
       const lowerKey = key.toLowerCase();
       if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
         scrubbed[key] = '[REDACTED]';
+      } else if (hashKeys.some(hk => lowerKey.includes(hk))) {
+        if (typeof scrubbed[key] === 'string') {
+          scrubbed[key] = 'hash-' + crypto.createHash('sha256').update(scrubbed[key]).digest('hex').substring(0, 16);
+        } else {
+          scrubbed[key] = '[REDACTED]';
+        }
       } else if (typeof scrubbed[key] === 'string') {
         scrubbed[key] = scrubbed[key]
           .replace(/(postgres:\/\/|postgresql:\/\/)[^@\s]+@[^\s]+/g, '$1[REDACTED]')

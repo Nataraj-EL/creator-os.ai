@@ -7,6 +7,9 @@ export class InMemoryQueueAdapter implements QueueAdapter {
   private retriesCount = 0;
 
   public async enqueue(job: Job): Promise<void> {
+    if (!job.metadata.tenantId || job.metadata.tenantId === 'default' || !job.metadata.workspaceId || job.metadata.workspaceId === 'default') {
+      throw new Error("Missing or unauthorized tenant/workspace context in job metadata.");
+    }
     job.status = 'QUEUED';
     job.updatedAt = new Date().toISOString();
     this.jobs.set(job.id, job);

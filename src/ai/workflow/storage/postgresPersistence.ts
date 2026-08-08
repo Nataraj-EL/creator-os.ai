@@ -47,9 +47,13 @@ export class PostgresWorkflowPersistenceStore implements WorkflowPersistenceStor
       const cleanCompletedSteps = this.redactSecrets(execution.completedSteps);
       const cleanErrors = this.redactSecrets(execution.errors);
 
-      const tenantId = cleanVariables.tenantId || 'default';
-      const workspaceId = cleanVariables.workspaceId || 'default';
+      const tenantId = cleanVariables.tenantId;
+      const workspaceId = cleanVariables.workspaceId;
       const creatorId = cleanVariables.creatorId || 'default';
+
+      if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+        throw new Error("Missing or unauthorized tenant/workspace context in workflow variables.");
+      }
 
       const heartbeatAt = new Date().toISOString();
       const startedAt = execution.startTime || new Date().toISOString();
@@ -136,7 +140,11 @@ export class PostgresWorkflowPersistenceStore implements WorkflowPersistenceStor
   ): Promise<WorkflowExecution | null> {
     this.ensureConnected();
     if (this.fallback) {
-      return this.fallback.getExecution(executionId);
+      return this.fallback.getExecution(executionId, tenantId, workspaceId);
+    }
+
+    if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+      throw new Error("Missing or unauthorized tenant/workspace context.");
     }
 
     try {
@@ -170,7 +178,11 @@ export class PostgresWorkflowPersistenceStore implements WorkflowPersistenceStor
   ): Promise<void> {
     this.ensureConnected();
     if (this.fallback) {
-      return this.fallback.deleteExecution(executionId);
+      return this.fallback.deleteExecution(executionId, tenantId, workspaceId);
+    }
+
+    if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
+      throw new Error("Missing or unauthorized tenant/workspace context.");
     }
 
     try {

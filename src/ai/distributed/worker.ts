@@ -21,7 +21,8 @@ export class WorkerRuntime {
     public readonly workerId: string,
     private queue: QueueAdapter,
     private concurrencyLimit: number,
-    private executors: Record<Job['type'], (payload: any) => Promise<any>>
+    private executors: Record<Job['type'], (payload: any) => Promise<any>>,
+    private allowedScope?: { tenantId: string; workspaceId: string }
   ) {}
 
   public addListener(listener: DistributedListener): void {
@@ -108,6 +109,15 @@ export class WorkerRuntime {
     try {
       const job = await this.queue.dequeue(this.workerId);
       if (job) {
+        if (this.allowedScope) {
+          const tenantId = job.metadata.tenantId || 'default';
+          const workspaceId = job.metadata.workspaceId || 'default';
+          if (tenantId !== this.allowedScope.tenantId || workspaceId !== this.allowedScope.workspaceId) {
+            // Out of scope: Dead-letter the job immediately to avoid infinite loops
+            await this.queue.deadLetter(job.id, `Job tenant/workspace context (${tenantId}/${workspaceId}) is outside worker allowed scope (${this.allowedScope.tenantId}/${this.allowedScope.workspaceId}).`);
+            return;
+          }
+        }
         this.status = 'ACTIVE';
         await this.executeJob(job);
       }

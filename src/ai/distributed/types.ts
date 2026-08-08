@@ -16,6 +16,8 @@ export interface JobMetadata {
   priority: number; // Higher number dequeues first
   tags?: string[];
   attempts: number;
+  tenantId?: string;
+  workspaceId?: string;
 }
 
 export type RetryStrategy = 'fixed' | 'linear' | 'exponential';

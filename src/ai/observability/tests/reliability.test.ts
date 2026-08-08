@@ -12,7 +12,7 @@ test('Production Reliability & Observability Test Suite', async (t) => {
 
   const createMockToken = (userId: string, workspaceId: string): string => {
     const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
-    const payload = Buffer.from(JSON.stringify({ userId, workspaceId, exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64');
+    const payload = Buffer.from(JSON.stringify({ userId, workspaceId, tenantId: 'tenant-test', exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64');
     return `${header}.${payload}.signature`;
   };
 

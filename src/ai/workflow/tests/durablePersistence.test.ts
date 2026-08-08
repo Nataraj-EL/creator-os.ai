@@ -225,7 +225,10 @@ test('Durable Workflow & Agent Execution Test Suite', async (t) => {
       workflowVersion: '1.0.0',
       status: 'RUNNING',
       currentStepId: 'step-1',
-      variables: {},
+      variables: {
+        tenantId: 'tenant-test',
+        workspaceId: 'workspace-test'
+      },
       completedSteps: {},
       errors: {},
       startTime: new Date().toISOString(),

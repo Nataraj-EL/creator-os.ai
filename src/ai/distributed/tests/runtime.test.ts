@@ -21,7 +21,12 @@ test('Distributed Execution Runtime Test Suite', async (t) => {
       type: 'AGENT',
       payload: {},
       status: 'QUEUED',
-      metadata: { priority: 10, attempts: 0 },
+      metadata: { 
+        priority: 10, 
+        attempts: 0,
+        tenantId: 'tenant-test',
+        workspaceId: 'workspace-test'
+      },
       policy: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

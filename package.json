@@ -39,7 +39,8 @@
     "test:vector-memory": "node --import tsx src/ai/memory/tests/vectorRepository.test.ts",
     "test:distributed-bullmq": "node --import tsx src/ai/distributed/tests/bullmq.test.ts",
     "test:bullmq-smoke": "node --import tsx src/ai/distributed/tests/smoke.test.ts",
-    "test:durable-workflow": "node --import tsx src/ai/workflow/tests/durablePersistence.test.ts"
+    "test:durable-workflow": "node --import tsx src/ai/workflow/tests/durablePersistence.test.ts",
+    "test:mcp-production": "node --import tsx src/ai/mcp/tests/production.test.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",

@@ -8,3 +8,6 @@ export * from './session';
 export * from './adapter';
 export * from './runtime';
 export * from './config/featureFlags';
+export * from './transport/stdio';
+export * from './transport/http';
+export * from './client';

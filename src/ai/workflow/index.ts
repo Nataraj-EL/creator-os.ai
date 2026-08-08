@@ -5,3 +5,4 @@ export * from './registry';
 export * from './persistence';
 export * from './runtime';
 export * from './config/featureFlags';
+export * from './storage/postgresPersistence';

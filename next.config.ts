@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["promptfoo"],
   webpack: (config, { isServer }) => {
+    config.externals = [...(config.externals || []), "promptfoo"];
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

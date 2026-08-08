@@ -160,8 +160,8 @@ export async function runPreProviderGenerationSteps(
         requestId: context.requestId,
         traceId: context.traceId,
         creatorId: context.creatorId,
-        provider: request.provider,
-        model: request.model,
+        provider: context.metadata.provider || request.provider,
+        model: context.metadata.model || request.model,
         metadata: context.metadata
       });
       finalTopic = report.finalContent;
@@ -188,8 +188,8 @@ export async function runPostProviderGenerationSteps(
         requestId: context.requestId,
         traceId: context.traceId,
         creatorId: context.creatorId,
-        provider: request.provider,
-        model: request.model,
+        provider: context.metadata.provider || request.provider,
+        model: context.metadata.model || request.model,
         metadata: context.metadata
       });
       content = report.finalContent;
@@ -300,7 +300,7 @@ export class GenerationHandler implements AIHandler<GenerationRequest, Generatio
     let responseData: any;
 
     if (providerFeatureFlags.PROVIDERS_ENABLED) {
-      const provider = providerResolver.resolve(request.provider);
+      const provider = providerResolver.resolve(context.metadata.provider || request.provider);
       const retryPolicy = new ExponentialBackoffRetryPolicy(
         3, 
         100, 
@@ -312,7 +312,7 @@ export class GenerationHandler implements AIHandler<GenerationRequest, Generatio
 
       const providerRequest = {
         prompt: preResult.finalTopic,
-        model: request.model,
+        model: context.metadata.model || request.model,
         signal: (request as any).signal,
         metadata: {
           workspaceId: request.workspaceId,

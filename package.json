@@ -48,7 +48,8 @@
     "test:rbac": "node --import tsx src/ai/observability/tests/rbac.test.ts",
     "test:eval-gate": "node --import tsx src/ai/evaluation/tests/qualityGate.test.ts",
     "test:cache": "node --import tsx src/ai/cache/tests/cache.test.ts",
-    "test:streaming": "node --import tsx src/ai/streaming/tests/productionStreaming.test.ts"
+    "test:streaming": "node --import tsx src/ai/streaming/tests/productionStreaming.test.ts",
+    "test:promptfoo": "node --import tsx src/ai/evaluation/promptfoo/cli.ts"
   },
   "dependencies": {
     "axios": "^1.17.0",
@@ -78,6 +79,7 @@
     "eslint-config-next": "16.2.7",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "promptfoo": "^0.122.0"
   }
 }

@@ -268,25 +268,68 @@ export class PromptfooProvider implements EvaluationProvider {
   };
 
   public async execute(context: EvaluationContext, config?: EvaluationConfig): Promise<EvaluationResult> {
-    return {
-      evaluationId: `eval-pf-${Math.random().toString(36).substring(2, 9)}`,
-      context,
-      status: EvaluationStatus.COMPLETED,
-      metrics: [
-        {
-          metricId: 'prompt-assertions',
-          name: 'Assertion Testing',
-          score: 85,
-          weight: 1.0,
-          confidence: 0.95,
-          status: 'pass',
-          reason: 'Configured prompt boundary checks successfully satisfied.'
+    const startTime = Date.now();
+
+    try {
+      const { runPromptfooEval } = await import('../promptfoo/adapter');
+
+      const title = context.metadata?.title || 'System Test';
+      const topic = context.metadata?.inputPrompt || context.metadata?.topic || '';
+      const primaryGoal = context.metadata?.primaryGoal || 'Reach';
+      const generatedContent = context.metadata?.generatedContent || '';
+
+      const testCase = {
+        vars: { title, topic, primaryGoal },
+        assert: [
+          {
+            type: 'javascript',
+            value: 'output.length > 0'
+          }
+        ]
+      };
+
+      const customProvider = {
+        id: () => 'runtime-promptfoo-provider',
+        callApi: async () => {
+          return { output: generatedContent };
         }
-      ],
-      overallScore: 85,
-      latencyMs: 95,
-      createdAt: new Date().toISOString()
-    };
+      };
+
+      const pfResult = await runPromptfooEval({
+        prompts: ['{{topic}}'],
+        providers: [customProvider],
+        tests: [testCase]
+      });
+
+      const firstResult = pfResult.results?.[0];
+      const overallScore = Math.round((firstResult?.gradingResult?.score || 1.0) * 100);
+
+      let status: 'pass' | 'fail' | 'warning' = 'pass';
+      if (overallScore < 60) status = 'fail';
+      else if (overallScore < 80) status = 'warning';
+
+      return {
+        evaluationId: `eval-pf-${Math.random().toString(36).substring(2, 9)}`,
+        context,
+        status: EvaluationStatus.COMPLETED,
+        metrics: [
+          {
+            metricId: 'prompt-assertions',
+            name: 'Assertion Testing',
+            score: overallScore,
+            weight: 1.0,
+            confidence: 0.95,
+            status,
+            reason: firstResult?.gradingResult?.reason || 'Configured assertions satisfied.'
+          }
+        ],
+        overallScore,
+        latencyMs: Date.now() - startTime,
+        createdAt: new Date().toISOString()
+      };
+    } catch (err: any) {
+      throw new Error(`[PromptfooProvider] Evaluation execution failed: ${err.message}`);
+    }
   }
 }
 

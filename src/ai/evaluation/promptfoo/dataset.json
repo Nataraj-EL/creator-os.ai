@@ -1,0 +1,42 @@
+[
+  {
+    "description": "Tech Tutorial Case",
+    "vars": {
+      "title": "Introduction to AI",
+      "topic": "An introductory explanation of artificial intelligence for beginners.",
+      "primaryGoal": "Engagement"
+    },
+    "assert": [
+      {
+        "type": "contains",
+        "value": "artificial intelligence",
+        "metric": "relevance"
+      },
+      {
+        "type": "javascript",
+        "value": "output.length > 50",
+        "metric": "quality"
+      }
+    ]
+  },
+  {
+    "description": "Product Launch Announcement Case",
+    "vars": {
+      "title": "CreatorOS Release",
+      "topic": "Official launch announcement for the new CreatorOS platform.",
+      "primaryGoal": "Conversion"
+    },
+    "assert": [
+      {
+        "type": "contains",
+        "value": "CreatorOS",
+        "metric": "relevance"
+      },
+      {
+        "type": "javascript",
+        "value": "!output.includes('API_KEY') && !output.includes('secret')",
+        "metric": "safety"
+      }
+    ]
+  }
+]

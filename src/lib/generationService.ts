@@ -40,6 +40,7 @@ import { ToolRegistry, DefaultToolExecutor, DefaultToolValidator, ToolRuntime, T
 import { policyRuntime, featureFlags as policyFeatureFlags } from '../ai/policy';
 import { MCPClientHub } from '../ai/mcp';
 import { WorkflowRegistry, StepExecutorRegistry, WorkflowRuntime, WorkflowPersistenceFactory } from '../ai/workflow';
+import { CachingMiddleware } from '../ai/cache/middleware/cachingMiddleware';
 
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
@@ -75,6 +76,7 @@ if (generationMiddlewareRunner.getMiddlewares().length === 0) {
   generationMiddlewareRunner.use(new MemoryLearningMiddleware());
   generationMiddlewareRunner.use(new EvaluationMiddleware(evaluationService));
   generationMiddlewareRunner.use(new EvaluationRuntimeMiddleware());
+  generationMiddlewareRunner.use(new CachingMiddleware());
 }
 
 export interface GenerationRequest extends AIRequest {

@@ -28,8 +28,15 @@ export class ExponentialBackoffRetryPolicy implements RetryPolicy {
       try {
         return await operation(attempt);
       } catch (err: any) {
-        // Do not retry cancellation errors
-        if (err instanceof ProviderError && err.code === 'CANCELLED') {
+        const isPermanent = err instanceof Error && (
+          err.name === 'PolicyError' ||
+          (err instanceof ProviderError && (
+            err.code === 'CANCELLED' ||
+            err.code === 'AUTH_ERROR' ||
+            err.code === 'BAD_REQUEST'
+          ))
+        );
+        if (isPermanent) {
           throw err;
         }
 

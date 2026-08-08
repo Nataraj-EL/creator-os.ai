@@ -21,7 +21,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized: Invalid JWT encoding." }, { status: 401 });
     }
 
-    // Securely derive user identity from token signature payload
     const creatorId = payload.userId || payload.sub || payload.id;
     if (!creatorId) {
       return NextResponse.json({ error: "Unauthorized: Missing user identity in token." }, { status: 401 });
@@ -30,7 +29,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, topic, primaryGoal, workspaceId: bodyWorkspaceId } = body;
 
-    // Validate request parameters using clean criteria
     if (!title || typeof title !== 'string' || !title.trim()) {
       return NextResponse.json({ error: "Bad Request: Title is required." }, { status: 400 });
     }
@@ -38,18 +36,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Bad Request: Topic is required." }, { status: 400 });
     }
 
-    // Derive workspace context securely (ensure it matches request parameters)
     const workspaceId = payload.workspaceId || payload.activeWorkspaceId || bodyWorkspaceId;
     if (!workspaceId) {
       return NextResponse.json({ error: "Bad Request: Missing workspace context." }, { status: 400 });
     }
 
-    // Derive server-side correlation identifiers
     const traceId = request.headers.get('X-Trace-Id') || `trace-gen-${crypto.randomUUID()}`;
     const requestId = request.headers.get('X-Request-Id') || `req-gen-${crypto.randomUUID()}`;
 
-    // Execute generation pipeline server-side
-    const result = await generateContent(
+    // Read configurable timeout (default to 15s)
+    const timeoutMs = process.env.GENERATION_TIMEOUT_MS ? parseInt(process.env.GENERATION_TIMEOUT_MS) : 15000;
+    const controller = new AbortController();
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        controller.abort();
+        reject(new Error(`Content generation timed out after ${timeoutMs}ms.`));
+      }, timeoutMs);
+    });
+
+    const generationPromise = generateContent(
       creatorId,
       workspaceId,
       title,
@@ -58,16 +64,32 @@ export async function POST(request: Request) {
       {
         authorization: authHeader,
         traceId,
-        requestId
+        requestId,
+        signal: controller.signal
       }
     );
 
+    const result = await Promise.race([generationPromise, timeoutPromise]);
+
     return NextResponse.json(result.data);
   } catch (err: any) {
-    console.error("[Server Generation Route] execution failed:", err);
+    console.error("[Server Generation Route] execution failed:", err.message);
+    const isTimeout = err.message.includes('timed out') || err.message.includes('timeout');
+    const isPolicy = err.name === 'PolicyError' || err.message.includes('Policy Denied');
+    
+    const code = isTimeout ? 504 : (isPolicy ? 403 : 500);
+    
+    // Normalize and sanitize error message (never expose internal secrets or stack dumps)
+    let displayMessage = "An error occurred during content generation.";
+    if (isTimeout) {
+      displayMessage = `Request timed out. Please try again.`;
+    } else if (isPolicy) {
+      displayMessage = err.message;
+    }
+    
     return NextResponse.json(
-      { error: err.message || "Internal server error during content generation." },
-      { status: 500 }
+      { error: displayMessage },
+      { status: code }
     );
   }
 }

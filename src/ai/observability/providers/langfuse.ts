@@ -173,6 +173,10 @@ export class LangfuseTraceProvider {
       const lowerKey = key.toLowerCase();
       if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
         scrubbed[key] = '[REDACTED]';
+      } else if (typeof scrubbed[key] === 'string') {
+        scrubbed[key] = scrubbed[key]
+          .replace(/(postgres:\/\/|postgresql:\/\/)[^@\s]+@[^\s]+/g, '$1[REDACTED]')
+          .replace(/(redis:\/\/|rediss:\/\/)[^@\s]+@[^\s]+/g, '$1[REDACTED]');
       } else if (typeof scrubbed[key] === 'object' && scrubbed[key] !== null) {
         scrubbed[key] = this.scrubMetadata(scrubbed[key]);
       }

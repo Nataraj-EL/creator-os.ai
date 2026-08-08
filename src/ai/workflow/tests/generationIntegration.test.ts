@@ -63,7 +63,7 @@ test('Production Generation Path Integration Test Suite', async (t) => {
     const res = await POST(req);
     assert.strictEqual(res.status, 400);
     const data = await res.json();
-    assert.match(data.error, /Title is required/);
+    assert.match(data.error, /Parameter validation failed/);
   });
 
   await t.test('4. Successfully invokes server-side generateContent, propagating context and policy runs', async () => {

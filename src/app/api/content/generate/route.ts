@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
 import { generateContent } from '../../../../lib/generationService';
+import { z } from 'zod';
+
+const generationRequestSchema = z.object({
+  title: z.string().min(1).max(200),
+  topic: z.string().min(1).max(5000),
+  primaryGoal: z.enum(['Reach', 'Engagement', 'Conversion']).default('Reach'),
+  workspaceId: z.string().min(1).max(100).optional()
+}).strict();
 
 export async function POST(request: Request) {
   try {
+    const rawBody = await request.text();
+    if (rawBody.length > 50 * 1024) {
+      return NextResponse.json({ error: "Payload Too Large: Maximum request size is 50KB." }, { status: 413 });
+    }
+
     const authHeader = request.headers.get('Authorization') || '';
     if (!authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: "Unauthorized: Missing or invalid token." }, { status: 401 });
@@ -26,21 +39,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized: Missing user identity in token." }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { title, topic, primaryGoal, workspaceId: bodyWorkspaceId } = body;
-
-    if (!title || typeof title !== 'string' || !title.trim()) {
-      return NextResponse.json({ error: "Bad Request: Title is required." }, { status: 400 });
-    }
-    if (!topic || typeof topic !== 'string' || !topic.trim()) {
-      return NextResponse.json({ error: "Bad Request: Topic is required." }, { status: 400 });
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (err) {
+      return NextResponse.json({ error: "Bad Request: Malformed JSON body." }, { status: 400 });
     }
 
-    const workspaceId = payload.workspaceId || payload.activeWorkspaceId || bodyWorkspaceId;
-    if (!workspaceId) {
+    const parseResult = generationRequestSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json({ error: "Bad Request: Parameter validation failed." }, { status: 400 });
+    }
+
+    const { title, topic, primaryGoal, workspaceId: bodyWorkspaceId } = parseResult.data;
+
+    // Validate tenant/workspace context isolation (prevent IDOR)
+    const allowedWorkspaces = payload.workspaces || [];
+    const requestedWorkspaceId = bodyWorkspaceId || payload.workspaceId || payload.activeWorkspaceId;
+
+    if (!requestedWorkspaceId) {
       return NextResponse.json({ error: "Bad Request: Missing workspace context." }, { status: 400 });
     }
 
+    const hasAccess = 
+      requestedWorkspaceId === payload.workspaceId || 
+      requestedWorkspaceId === payload.activeWorkspaceId || 
+      allowedWorkspaces.includes(requestedWorkspaceId) ||
+      allowedWorkspaces.some((w: any) => w === requestedWorkspaceId || w.id === requestedWorkspaceId);
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden: Inconsistent workspace authorization." }, { status: 403 });
+    }
+
+    const workspaceId = requestedWorkspaceId;
     const traceId = request.headers.get('X-Trace-Id') || `trace-gen-${crypto.randomUUID()}`;
     const requestId = request.headers.get('X-Request-Id') || `req-gen-${crypto.randomUUID()}`;
 

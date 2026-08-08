@@ -3,8 +3,31 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authHeader = request.headers.get('Authorization') || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: "Unauthorized: Missing or invalid token." }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return NextResponse.json({ error: "Unauthorized: Malformed JWT." }, { status: 401 });
+    }
+
+    let payload: any;
+    try {
+      payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+    } catch (e) {
+      return NextResponse.json({ error: "Unauthorized: Invalid JWT encoding." }, { status: 401 });
+    }
+
+    const creatorId = payload.userId || payload.sub || payload.id;
+    if (!creatorId) {
+      return NextResponse.json({ error: "Unauthorized: Missing user identity in token." }, { status: 401 });
+    }
+
     const homeDir = os.homedir();
     const chromeDir = path.join(homeDir, '.config', 'google-chrome');
     const chromiumDir = path.join(homeDir, '.config', 'chromium');

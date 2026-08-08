@@ -11,6 +11,12 @@ import {
 import { evaluationService } from '../ai/evaluation/services';
 import { AIRequest, AIResponse, AIHandler, AIContext } from '../ai/middleware/types';
 import { featureFlags } from '../ai/evaluation/config/featureFlags';
+import { EvaluationStage, EvaluationStatus } from '../ai/evaluation/types';
+import { QualityGateError, EvaluationRuntimeError } from '../ai/evaluation/utils/errors';
+import { featureFlags as evalFeatureFlags } from '../ai/evaluation/config/featureFlags';
+import { cacheService } from '../ai/cache/services';
+import { buildCacheKey } from '../ai/cache/utils/key';
+import { MiddlewareAction } from '../ai/middleware/types';
 import { experimentService } from '../ai/evaluation/runtime';
 import { 
   featureFlags as providerFeatureFlags,
@@ -102,8 +108,103 @@ function getContextAssemblyRuntime(): ContextAssemblyRuntime {
   return contextAssemblyRuntimeInstance;
 }
 
-class GenerationHandler implements AIHandler<GenerationRequest, GenerationResponse> {
-  async handle(context: AIContext, request: GenerationRequest): Promise<GenerationResponse> {
+export async function runPreProviderGenerationSteps(
+  context: AIContext,
+  request: GenerationRequest,
+  templateOverride?: string
+): Promise<{
+  finalTopic: string;
+  contextResult: any;
+  selectedMemoryIds: string[];
+  promptVersion: string;
+}> {
+  let finalTopic = request.topic;
+  let selectedMemoryIds: string[] = [];
+  let promptVersion = '1.0.0';
+  let contextResult: any = null;
+
+  if (promptFeatureFlags.CONTEXT_INJECTION) {
+    try {
+      const assembler = getContextAssemblyRuntime();
+      const promptString = `Topic: ${request.topic} | Title: ${request.title} | Goal: ${request.primaryGoal}`;
+      
+      contextResult = await assembler.assemble({
+        userId: context.creatorId,
+        prompt: promptString,
+        tokenBudget: 2000,
+        metadata: { requestId: context.requestId, traceId: context.traceId }
+      });
+
+      selectedMemoryIds = contextResult.blocks.map((b: any) => b.id);
+
+      if (promptFeatureFlags.PROMPT_BUILDER) {
+        const systemInstructions = templateOverride || `You are CreatorOS AI content generator. Title: ${request.title}. Primary Goal: ${request.primaryGoal}.`;
+        const promptPackage = PromptBuilder.build(request.topic, contextResult, {
+          systemInstructions
+        });
+        
+        promptVersion = promptPackage.metadata.promptVersion;
+
+        // Adapt PromptPackage to provider-specific payload
+        const formattedBlocksStr = promptPackage.contextBlocks.join('\n\n');
+        finalTopic = `${promptPackage.systemInstructions}\n\nUse the following relevant context:\n\n${formattedBlocksStr}\n\nUser Prompt: ${promptPackage.userPrompt}`;
+      }
+    } catch (err) {
+      console.error("[AI-GEN] Context injection failed (fail-open):", err);
+    }
+  }
+
+  if (policyFeatureFlags.POLICY_RUNTIME && policyFeatureFlags.INPUT_GUARDRAILS) {
+    try {
+      const report = await policyRuntime.evaluate('PRE_PROVIDER', finalTopic, {
+        requestId: context.requestId,
+        traceId: context.traceId,
+        creatorId: context.creatorId,
+        provider: request.provider,
+        model: request.model,
+        metadata: context.metadata
+      });
+      finalTopic = report.finalContent;
+    } catch (err: any) {
+      if (err.name === 'PolicyError') {
+        throw err;
+      }
+      console.error("[AI-GEN] Pre-provider policy evaluate failed (fail-open):", err);
+    }
+  }
+
+  return { finalTopic, contextResult, selectedMemoryIds, promptVersion };
+}
+
+export async function runPostProviderGenerationSteps(
+  context: AIContext,
+  request: GenerationRequest,
+  rawContent: string
+): Promise<string> {
+  let content = rawContent;
+  if (policyFeatureFlags.POLICY_RUNTIME && policyFeatureFlags.OUTPUT_GUARDRAILS) {
+    try {
+      const report = await policyRuntime.evaluate('POST_PROVIDER', rawContent, {
+        requestId: context.requestId,
+        traceId: context.traceId,
+        creatorId: context.creatorId,
+        provider: request.provider,
+        model: request.model,
+        metadata: context.metadata
+      });
+      content = report.finalContent;
+    } catch (err: any) {
+      if (err.name === 'PolicyError') {
+        throw err;
+      }
+      console.error("[AI-GEN] Post-provider policy evaluate failed (fail-open):", err);
+    }
+  }
+  return content;
+}
+
+export class GenerationHandler implements AIHandler<GenerationRequest, GenerationResponse> {
+  public async handle(context: AIContext, request: GenerationRequest): Promise<GenerationResponse> {
     if (agentFeatureFlags.AGENT_RUNTIME) {
       try {
         const planner = new AgentPlanner();
@@ -174,11 +275,6 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       };
     }
 
-    let finalTopic = request.topic;
-    let selectedMemoryIds: string[] = [];
-    let promptVersion: string | undefined = undefined;
-    let contextResult: any = null;
-
     let variantId: string | undefined = undefined;
     let templateOverride: string | undefined = undefined;
 
@@ -199,56 +295,7 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       }
     }
 
-    // Fail-open Context Assembly invocation
-    if (promptFeatureFlags.CONTEXT_INJECTION) {
-      try {
-        const assembler = getContextAssemblyRuntime();
-        const promptString = `Topic: ${request.topic} | Title: ${request.title} | Goal: ${request.primaryGoal}`;
-        
-        contextResult = await assembler.assemble({
-          userId: context.creatorId,
-          prompt: promptString,
-          tokenBudget: 2000,
-          metadata: { requestId: context.requestId, traceId: context.traceId }
-        });
-
-        selectedMemoryIds = contextResult.blocks.map((b: any) => b.id);
-
-        if (promptFeatureFlags.PROMPT_BUILDER) {
-          const systemInstructions = templateOverride || `You are CreatorOS AI content generator. Title: ${request.title}. Primary Goal: ${request.primaryGoal}.`;
-          const promptPackage = PromptBuilder.build(request.topic, contextResult, {
-            systemInstructions
-          });
-          
-          promptVersion = promptPackage.metadata.promptVersion;
-
-          // Adapt PromptPackage to provider-specific payload (Axios POST topic field)
-          const formattedBlocksStr = promptPackage.contextBlocks.join('\n\n');
-          finalTopic = `${promptPackage.systemInstructions}\n\nUse the following relevant context:\n\n${formattedBlocksStr}\n\nUser Prompt: ${promptPackage.userPrompt}`;
-        }
-      } catch (err) {
-        console.error("[AI-GEN] Context injection failed (fail-open):", err);
-      }
-    }
-
-    if (policyFeatureFlags.POLICY_RUNTIME && policyFeatureFlags.INPUT_GUARDRAILS) {
-      try {
-        const report = await policyRuntime.evaluate('PRE_PROVIDER', finalTopic, {
-          requestId: context.requestId,
-          traceId: context.traceId,
-          creatorId: context.creatorId,
-          provider: request.provider,
-          model: request.model,
-          metadata: context.metadata
-        });
-        finalTopic = report.finalContent;
-      } catch (err: any) {
-        if (err.name === 'PolicyError') {
-          throw err;
-        }
-        console.error("[AI-GEN] Pre-provider policy evaluate failed (fail-open):", err);
-      }
-    }
+    const preResult = await runPreProviderGenerationSteps(context, request, templateOverride);
 
     let responseData: any;
 
@@ -264,7 +311,7 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       const runtime = new ProviderRuntime(providerRegistry, retryPolicy, timeoutPolicy);
 
       const providerRequest = {
-        prompt: finalTopic,
+        prompt: preResult.finalTopic,
         model: request.model,
         signal: (request as any).signal,
         metadata: {
@@ -279,10 +326,10 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       // Automatically append provider, model, version, latency, and retryCount to trace metadata
       context.metadata = {
         ...context.metadata,
-        selectedMemoryIds,
-        promptVersion,
+        selectedMemoryIds: preResult.selectedMemoryIds,
+        promptVersion: preResult.promptVersion,
         variantId,
-        contextBlocks: contextResult ? contextResult.blocks : [],
+        contextBlocks: preResult.contextResult ? preResult.contextResult.blocks : [],
         provider: provider.name,
         model: providerResponse.model,
         version: '1.0.0',
@@ -300,10 +347,10 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
       // Propagate ID arrays, prompt version, variantId, and contextBlocks to shared context metadata
       context.metadata = {
         ...context.metadata,
-        selectedMemoryIds,
-        promptVersion,
+        selectedMemoryIds: preResult.selectedMemoryIds,
+        promptVersion: preResult.promptVersion,
         variantId,
-        contextBlocks: contextResult ? contextResult.blocks : []
+        contextBlocks: preResult.contextResult ? preResult.contextResult.blocks : []
       };
 
       // Outbound API request to backend generation endpoint
@@ -311,7 +358,7 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
         `/api/v1/workspaces/${request.workspaceId}/content`, 
         {
           title: request.title,
-          topic: finalTopic, // Transformed payload!
+          topic: preResult.finalTopic, // Transformed payload!
           primaryGoal: request.primaryGoal
         },
         config
@@ -325,28 +372,11 @@ class GenerationHandler implements AIHandler<GenerationRequest, GenerationRespon
                        responseData?.content || 
                        JSON.stringify(responseData);
 
-    if (policyFeatureFlags.POLICY_RUNTIME && policyFeatureFlags.OUTPUT_GUARDRAILS) {
-      try {
-        const report = await policyRuntime.evaluate('POST_PROVIDER', rawContent, {
-          requestId: context.requestId,
-          traceId: context.traceId,
-          creatorId: context.creatorId,
-          provider: request.provider,
-          model: request.model,
-          metadata: context.metadata
-        });
-        rawContent = report.finalContent;
-        if (responseData) {
-          if (responseData.scriptDraft !== undefined) responseData.scriptDraft = rawContent;
-          if (responseData.generatedContent !== undefined) responseData.generatedContent = rawContent;
-          if (responseData.content !== undefined) responseData.content = rawContent;
-        }
-      } catch (err: any) {
-        if (err.name === 'PolicyError') {
-          throw err;
-        }
-        console.error("[AI-GEN] Post-provider policy evaluate failed (fail-open):", err);
-      }
+    rawContent = await runPostProviderGenerationSteps(context, request, rawContent);
+    if (responseData) {
+      if (responseData.scriptDraft !== undefined) responseData.scriptDraft = rawContent;
+      if (responseData.generatedContent !== undefined) responseData.generatedContent = rawContent;
+      if (responseData.content !== undefined) responseData.content = rawContent;
     }
 
     return {
@@ -387,4 +417,274 @@ export async function generateContent(
 
   return { data: response.data };
 }
+
+export async function generateContentStream(
+  creatorId: string,
+  workspaceId: string,
+  title: string,
+  topic: string,
+  primaryGoal: string,
+  options: {
+    authorization: string;
+    traceId: string;
+    requestId: string;
+    tenantId: string;
+    signal?: AbortSignal;
+  },
+  onEvent: (event: any) => void
+): Promise<void> {
+  const context: AIContext = {
+    creatorId,
+    stage: 'GENERATION',
+    pipeline: 'generation',
+    requestId: options.requestId,
+    traceId: options.traceId,
+    startTime: Date.now(),
+    metadata: {
+      tenantId: options.tenantId,
+      workspaceId,
+      authorization: options.authorization
+    }
+  };
+
+  const request: GenerationRequest = {
+    provider: 'Backend-API',
+    model: 'Backend-LLM',
+    prompt: topic,
+    workspaceId,
+    title,
+    topic,
+    primaryGoal
+  };
+
+  // 1. Run cache check (Sprint 44)
+  const cachingMiddleware = new CachingMiddleware();
+  const cacheHitAction = await cachingMiddleware.before(context, request);
+  if (cacheHitAction === MiddlewareAction.STOP && context.metadata.response) {
+    const cachedResponse = context.metadata.response;
+    onEvent({
+      type: 'metadata',
+      timestamp: new Date().toISOString(),
+      metadata: { state: 'started', cached: true }
+    });
+    onEvent({
+      type: 'token',
+      content: cachedResponse.content,
+      timestamp: new Date().toISOString()
+    });
+    onEvent({
+      type: 'completion',
+      timestamp: new Date().toISOString(),
+      metadata: { durationMs: 0, tokenCount: 1, responseData: cachedResponse.data }
+    });
+    return;
+  }
+
+  // 2. Experiments assignment
+  let templateOverride: string | undefined = undefined;
+  if (featureFlags.EXPERIMENTS_ENABLED) {
+    try {
+      const activeExperiments = experimentService.getAllExperiments();
+      if (activeExperiments.length > 0) {
+        const exp = activeExperiments[0];
+        const assignment = await experimentService.assignVariant(exp.experimentId, context.traceId || '');
+        context.metadata.variantId = assignment.variantId;
+        const variant = exp.variants.find(v => v.variantId === assignment.variantId);
+        if (variant) {
+          templateOverride = variant.promptTemplate;
+        }
+      }
+    } catch (err) {
+      console.error("[AI-GEN] Experiment variant assignment failed (fail-open):", err);
+    }
+  }
+
+  // 3. Context retrieval & PRE_PROVIDER policies
+  const preResult = await runPreProviderGenerationSteps(context, request, templateOverride);
+
+  // 4. Create Stream Session
+  const session = streamRuntime.createSession({
+    prompt: preResult.finalTopic,
+    model: request.model,
+    provider: request.provider,
+    signal: options.signal
+  }, {
+    traceId: options.traceId,
+    requestId: options.requestId
+  });
+
+  // Link abort signal
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => {
+      session.cancel();
+    });
+  }
+
+  // Track event bus started
+  traceEventBus.publish({
+    traceId: options.traceId,
+    requestId: options.requestId,
+    stage: 'streaming',
+    component: 'StreamRuntime',
+    status: 'started',
+    metadata: { model: request.model, provider: request.provider }
+  });
+
+  let accumulatedText = '';
+  session.subscribe({
+    onEvent(event) {
+      if (event.type === 'token') {
+        accumulatedText += event.content || '';
+        // Emit chunk to traceEventBus
+        traceEventBus.publish({
+          traceId: options.traceId,
+          requestId: options.requestId,
+          stage: 'streaming',
+          component: 'StreamRuntime',
+          status: 'completed',
+          metadata: { event: 'chunk', textLength: event.content?.length || 0 }
+        });
+      }
+      onEvent(event);
+    }
+  });
+
+  try {
+    onEvent({
+      type: 'metadata',
+      timestamp: new Date().toISOString(),
+      metadata: { state: 'started', sessionId: session.sessionId }
+    });
+    
+    await session.start();
+
+    if (session.status === 'error') {
+      throw new Error('Stream generation failed.');
+    }
+    if (session.status === 'cancelled') {
+      return;
+    }
+
+    // 5. Post-Stream Validation: POST_PROVIDER policies
+    const finalContent = await runPostProviderGenerationSteps(context, request, accumulatedText);
+
+    // 6. Post-Stream Quality Gates
+    const evalResult = await evaluationService.evaluate({
+      requestId: options.requestId,
+      creatorId,
+      sessionId: options.traceId,
+      stage: EvaluationStage.GENERATION,
+      provider: request.provider,
+      model: request.model,
+      metadata: {
+        inputPrompt: preResult.finalTopic,
+        generatedContent: finalContent
+      }
+    });
+
+    const isFail = evalResult.decision === 'FAIL';
+    const isStrict = evalFeatureFlags.STRICT_EVALUATION;
+    const isBlock = evalFeatureFlags.BLOCK_ON_FAIL;
+
+    if (evalResult.status === EvaluationStatus.FAILED && isStrict) {
+      throw new EvaluationRuntimeError(`Evaluation failed: ${evalResult.errorMessage || 'Unknown error'}`);
+    }
+
+    if (isFail && isBlock) {
+      throw new QualityGateError(`Quality gate failed: Score ${evalResult.overallScore} is below thresholds.`);
+    }
+
+    // 7. Database Persistence
+    let responseData: any;
+    if (providerFeatureFlags.PROVIDERS_ENABLED) {
+      responseData = {
+        scriptDraft: finalContent,
+        generatedContent: finalContent,
+        content: finalContent
+      };
+    } else {
+      const apiResponse = await apiClient.post(
+        `/api/v1/workspaces/${workspaceId}/content`,
+        {
+          title,
+          topic: preResult.finalTopic,
+          primaryGoal
+        },
+        {
+          headers: {
+            'Authorization': options.authorization
+          }
+        }
+      );
+      responseData = apiResponse.data;
+    }
+
+    const response: GenerationResponse = {
+      content: finalContent,
+      data: responseData
+    };
+
+    // 8. Cache response on success
+    await cachingMiddleware.after(context, request, response);
+
+    // Trace completion
+    const durationMs = Date.now() - session.startTime;
+    traceEventBus.publish({
+      traceId: options.traceId,
+      requestId: options.requestId,
+      stage: 'streaming',
+      component: 'StreamRuntime',
+      status: 'completed',
+      latencyMs: durationMs,
+      metadata: {
+        firstTokenLatency: session.firstTokenTime ? (session.firstTokenTime - session.startTime) : durationMs,
+        completionLatency: durationMs,
+        tokenCount: session.tokenCount,
+        projectId: responseData?.projectId
+      }
+    });
+
+    // Send final completion SSE payload with response database info
+    onEvent({
+      type: 'completion',
+      timestamp: new Date().toISOString(),
+      metadata: {
+        durationMs,
+        tokenCount: session.tokenCount,
+        responseData
+      }
+    });
+
+  } catch (err: any) {
+    if (session.status !== 'cancelled') {
+      traceEventBus.publish({
+        traceId: options.traceId,
+        requestId: options.requestId,
+        stage: 'streaming',
+        component: 'StreamRuntime',
+        status: 'failed',
+        metadata: { error: err.message }
+      });
+
+      // Send terminal error payload
+      const isQualityGate = err.name === 'QualityGateError' || err.message.includes('Quality gate failed');
+      const isPolicy = err.name === 'PolicyError' || err.message.includes('Policy Denied');
+      
+      let sanitizedMessage = 'An error occurred during content generation.';
+      if (isPolicy) {
+        sanitizedMessage = err.message;
+      } else if (isQualityGate) {
+        sanitizedMessage = 'Content quality gate check failed.';
+      }
+
+      onEvent({
+        type: 'error',
+        content: sanitizedMessage,
+        timestamp: new Date().toISOString()
+      });
+      throw err;
+    }
+  }
+}
+
 export { getContextAssemblyRuntime };

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { generateContent } from '../../../../lib/generationService';
+import { generateContent, generateContentStream } from '../../../../lib/generationService';
 import { z } from 'zod';
 
 const generationRequestSchema = z.object({
   title: z.string().min(1).max(200),
   topic: z.string().min(1).max(5000),
   primaryGoal: z.enum(['Reach', 'Engagement', 'Conversion']).default('Reach'),
-  workspaceId: z.string().min(1).max(100).optional()
+  workspaceId: z.string().min(1).max(100).optional(),
+  stream: z.boolean().optional()
 }).strict();
 
 export async function POST(request: Request) {
@@ -83,6 +84,62 @@ export async function POST(request: Request) {
     // Read configurable timeout (default to 15s)
     const timeoutMs = process.env.GENERATION_TIMEOUT_MS ? parseInt(process.env.GENERATION_TIMEOUT_MS) : 15000;
     const controller = new AbortController();
+
+    if (body.stream === true) {
+      // Connect request abort signal to generation execution controller
+      const requestSignal = request.signal;
+      requestSignal.addEventListener('abort', () => {
+        controller.abort();
+      });
+
+      // Stream timeout setup
+      const streamTimeout = setTimeout(() => {
+        controller.abort();
+      }, timeoutMs);
+
+      const stream = new ReadableStream({
+        async start(streamController) {
+          try {
+            await generateContentStream(
+              creatorId,
+              workspaceId,
+              title,
+              topic,
+              primaryGoal || 'Reach',
+              {
+                authorization: authHeader,
+                traceId,
+                requestId,
+                tenantId,
+                signal: controller.signal
+              },
+              (event) => {
+                const payload = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+                streamController.enqueue(new TextEncoder().encode(payload));
+              }
+            );
+          } catch (err: any) {
+            // Error events are emitted via generateContentStream, clean closure ensures safety
+          } finally {
+            clearTimeout(streamTimeout);
+            streamController.close();
+          }
+        },
+        cancel() {
+          controller.abort();
+          clearTimeout(streamTimeout);
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no'
+        }
+      });
+    }
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {

@@ -148,6 +148,16 @@ export function ContentStudioPage(props: {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleCancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setGenerating(false);
+      addToast("Generation cancelled", "info");
+    }
+  };
 
   // Repurposer States
   const [activeTool, setActiveTool] = useState<'scriptwriter' | 'repurposer'>(defaultTool);
@@ -359,38 +369,123 @@ export function ContentStudioPage(props: {
       });
     }, 800);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const accessToken = useAuthStore.getState().accessToken;
-      const response = await axios.post('/api/content/generate', {
-        creatorId: user?.id || 'unknown-creator',
-        workspaceId: activeWorkspace.id,
-        title: newTitle,
-        topic: newTopic,
-        primaryGoal: newPrimaryGoal
-      }, {
+      const response = await fetch('/api/content/generate', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
-        }
+        },
+        body: JSON.stringify({
+          creatorId: user?.id || 'unknown-creator',
+          workspaceId: activeWorkspace.id,
+          title: newTitle,
+          topic: newTopic,
+          primaryGoal: newPrimaryGoal,
+          stream: true
+        }),
+        signal: controller.signal
       });
 
-      clearInterval(stepInterval);
-      setGenerationStep(4);
-      await new Promise(r => setTimeout(r, 400));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate script draft.");
+      }
 
-      if (response.data) {
-        const created: ContentProject = response.data;
-        addToast("Draft generated successfully!", "success");
+      const contentType = response.headers.get('Content-Type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        setEditorTitle(newTitle);
+        setEditorTopic(newTopic);
+        setEditorPrimaryGoal(newPrimaryGoal);
+        setEditorHook(normalizeBullets(data.hook || ''));
+        setEditorScript(normalizeBullets(data.scriptDraft || data.script || data.content || ''));
+        setEditorCta(normalizeBullets(data.cta || ''));
+        setIsOnboarding(false);
         setNewTitle('');
         setNewTopic('');
-        setIsOnboarding(false);
-        // Refresh project list and select newly created project
-        await fetchProjects(activeWorkspace.id, created.projectId);
+        await fetchProjects(activeWorkspace.id, data.projectId);
+        clearInterval(stepInterval);
+        return;
       }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Failed to initialize stream reader.");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let scriptBuffer = '';
+
+      setEditorTitle(newTitle);
+      setEditorTopic(newTopic);
+      setEditorPrimaryGoal(newPrimaryGoal);
+      setEditorHook('');
+      setEditorScript('');
+      setEditorCta('');
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const cleanLine = line.trim();
+          if (!cleanLine || !cleanLine.startsWith('data: ')) continue;
+          
+          const jsonStr = cleanLine.substring(6);
+          try {
+            const event = JSON.parse(jsonStr);
+            if (event.type === 'metadata' && event.metadata?.state === 'started') {
+              setIsOnboarding(false);
+            } else if (event.type === 'token') {
+              scriptBuffer += event.content || '';
+              setEditorScript(normalizeBullets(scriptBuffer));
+            } else if (event.type === 'completion') {
+              const resData = event.metadata?.responseData;
+              if (resData) {
+                addToast("Draft generated successfully!", "success");
+                setNewTitle('');
+                setNewTopic('');
+                setIsOnboarding(false);
+                setEditorHook(normalizeBullets(resData.hook || ''));
+                setEditorScript(normalizeBullets(resData.scriptDraft || resData.script || resData.content || ''));
+                setEditorCta(normalizeBullets(resData.cta || ''));
+                await fetchProjects(activeWorkspace.id, resData.projectId);
+              }
+            } else if (event.type === 'error') {
+              throw new Error(event.content || "Stream failed.");
+            }
+          } catch (e: any) {
+            if (e.message.includes('Stream failed') || e.message.includes('quality gate') || e.message.includes('Policy')) {
+              throw e;
+            }
+          }
+        }
+      }
+
+      clearInterval(stepInterval);
     } catch (err: any) {
+      clearInterval(stepInterval);
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error(err);
-      addToast(err.response?.data?.message || "Failed to generate script draft. Try setting up your profile first.", "error");
+      addToast(err.message || "Failed to generate script draft. Try setting up your profile first.", "error");
     } finally {
       setGenerating(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -1188,11 +1283,19 @@ export function ContentStudioPage(props: {
                 </div>
 
                 {generating && (
-                  <div className="w-full max-w-lg mt-4 bg-zinc-900/60 border border-white/5 rounded-xl p-3 flex items-center gap-3">
-                    <Loader2 className="h-4 w-4 text-cyan-400 animate-spin flex-shrink-0" />
-                    <span className="text-[11px] text-zinc-400 font-mono animate-pulse">
-                      {generationSteps[generationStep]}
-                    </span>
+                  <div className="w-full max-w-lg mt-4 bg-[#0a0a0c]/60 border border-white/[0.08] rounded-xl p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-4 w-4 text-cyan-400 animate-spin flex-shrink-0" />
+                      <span className="text-[11px] text-zinc-400 font-mono animate-pulse">
+                        {generationSteps[generationStep]}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleCancelGeneration}
+                      className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 rounded-md cursor-pointer transition-all focus:outline-none"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
 

@@ -12,6 +12,7 @@ import { WorkflowPersistenceStore } from './persistence';
 import { StepExecutorRegistry, StepExecutionContext } from './executors';
 import { WorkflowVariables } from './variables';
 import { featureFlags } from './config/featureFlags';
+import { traceEventBus } from '../observability';
 
 export class WorkflowRuntime {
   private listeners: Set<WorkflowListener> = new Set();
@@ -52,6 +53,37 @@ export class WorkflowRuntime {
       } catch (err) {
         console.error("[WorkflowRuntime] Listener failed:", err);
       }
+    }
+
+    try {
+      const statusMap: Record<string, 'started' | 'completed' | 'failed'> = {
+        'WORKFLOW_STARTED': 'started',
+        'WORKFLOW_COMPLETED': 'completed',
+        'WORKFLOW_FAILED': 'failed',
+        'STEP_STARTED': 'started',
+        'STEP_COMPLETED': 'completed',
+        'STEP_FAILED': 'failed',
+        'WORKFLOW_PAUSED': 'completed',
+        'WORKFLOW_RESUMED': 'started'
+      };
+      
+      const status = statusMap[type] || 'completed';
+      
+      traceEventBus.publish({
+        traceId: executionId,
+        requestId: executionId,
+        stage: 'workflow',
+        component: stepId ? `WorkflowStep:${stepId}` : `Workflow:${workflowId}`,
+        status,
+        metadata: {
+          workflowId,
+          stepId,
+          eventType: type,
+          ...details
+        }
+      });
+    } catch {
+      // fail-open
     }
   }
 

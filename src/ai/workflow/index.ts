@@ -6,3 +6,4 @@ export * from './persistence';
 export * from './runtime';
 export * from './config/featureFlags';
 export * from './storage/postgresPersistence';
+export * from './storage/persistenceFactory';

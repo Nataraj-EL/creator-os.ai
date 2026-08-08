@@ -38,6 +38,8 @@ import { RetrievalService } from '../ai/retrieval';
 import { StreamRuntime, DefaultStreamAdapter, WordChunkingStrategy } from '../ai/streaming';
 import { ToolRegistry, DefaultToolExecutor, DefaultToolValidator, ToolRuntime, ToolResolver } from '../ai/tools';
 import { policyRuntime, featureFlags as policyFeatureFlags } from '../ai/policy';
+import { MCPClientHub } from '../ai/mcp';
+import { WorkflowRegistry, StepExecutorRegistry, WorkflowRuntime, WorkflowPersistenceFactory } from '../ai/workflow';
 
 // Instantiate and initialize a shared runner instance
 export const generationMiddlewareRunner = new AIMiddlewareRunner();
@@ -53,6 +55,17 @@ export const toolExecutor = new DefaultToolExecutor();
 export const toolValidator = new DefaultToolValidator();
 export const toolRuntime = new ToolRuntime(toolRegistry, toolExecutor, toolValidator);
 export const toolResolver = new ToolResolver(toolRuntime);
+
+export const mcpClientHub = new MCPClientHub();
+
+export const workflowRegistry = new WorkflowRegistry();
+export const stepExecutorRegistry = new StepExecutorRegistry();
+export const workflowRuntime = new WorkflowRuntime(
+  workflowRegistry,
+  WorkflowPersistenceFactory.getStore(),
+  stepExecutorRegistry,
+  {}
+);
 
 // Ensure built-in middlewares are registered exactly once
 if (generationMiddlewareRunner.getMiddlewares().length === 0) {

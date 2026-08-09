@@ -74,9 +74,14 @@ export class DefaultEvaluationService implements IEvaluationService {
     this.logger.logStarted(context);
 
     try {
-      // Resolve provider
+      // Resolve provider safely
       const providerName = config?.providerName || context.provider || 'LLM-Judge';
-      const provider = this.registry.get(providerName);
+      let provider;
+      try {
+        provider = this.registry.get(providerName);
+      } catch {
+        provider = this.registry.defaultProvider();
+      }
 
       // Validate provider support
       if (!provider.metadata.supportedStages.includes(context.stage)) {

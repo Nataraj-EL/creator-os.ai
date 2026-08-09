@@ -760,6 +760,14 @@ export default function DeveloperEvaluationConsole() {
           </button>
           
           <button
+            onClick={loadRecords}
+            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-zinc-300 font-medium text-xs cursor-pointer transition-all focus:outline-none flex items-center justify-center gap-2"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            <span>Refresh</span>
+          </button>
+
+          <button
             onClick={handleRunEvaluation}
             disabled={runningEval}
             className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 disabled:from-cyan-950 disabled:to-indigo-950 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/10 transition-all border border-transparent focus:outline-none disabled:cursor-not-allowed"

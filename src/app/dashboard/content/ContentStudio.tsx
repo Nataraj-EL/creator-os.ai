@@ -361,6 +361,15 @@ export function ContentStudioPage(props: {
     setGenerating(true);
     setGenerationStep(0);
 
+    // Reset draft fields to new values immediately to mount the editor cleanly
+    setEditorTitle(newTitle);
+    setEditorTopic(newTopic);
+    setEditorPrimaryGoal(newPrimaryGoal);
+    setEditorHook('');
+    setEditorScript('');
+    setEditorCta('');
+    setIsOnboarding(false);
+
     const stepInterval = setInterval(() => {
       setGenerationStep((prev) => {
         if (prev < generationSteps.length - 1) return prev + 1;
@@ -1199,10 +1208,8 @@ export function ContentStudioPage(props: {
         {/* RIGHT COLUMN: Studio Canvas or Onboarding Input (8 cols) */}
         <div className="lg:col-span-8 flex flex-col h-auto lg:h-full overflow-hidden">
           
-          <AnimatePresence mode="wait">
-            
-            {/* ONBOARDING STATE */}
-            {isOnboarding ? (
+          {/* ONBOARDING STATE */}
+          {isOnboarding ? (
               <motion.div
                 key="onboarding"
                 initial={{ opacity: 0, y: 15 }}
@@ -1457,10 +1464,28 @@ export function ContentStudioPage(props: {
                 {/* MAIN RICH EDITOR CANVAS AREA */}
                 {editorTab === 'edit' ? (
                   <div className="flex-1 overflow-y-auto space-y-5 pr-2 custom-scrollbar">
-                  
-                  {/* Topic section */}
+                    
+                    {generating && (
+                      <div className="bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border border-cyan-500/25 rounded-2xl p-4 flex items-center justify-between gap-3 animate-pulse">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Loader2 className="h-5 w-5 text-cyan-400 animate-spin flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-white uppercase tracking-wider">Generating Draft</p>
+                            <p className="text-[10px] text-zinc-400 truncate mt-0.5 font-mono">{generationSteps[generationStep]}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleCancelGeneration}
+                          className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 bg-black/40 rounded-xl cursor-pointer transition-all focus:outline-none"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Topic section */}
                   <div className="space-y-3">
-                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start justify-between">
                       <div className="flex-1 space-y-1.5">
                         <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Topic Idea Details</span>
                         <textarea
@@ -1518,38 +1543,49 @@ export function ContentStudioPage(props: {
                       )}
                     </div>
 
-                    <textarea
-                      value={editorHook}
-                      onChange={(e) => setEditorHook(e.target.value)}
-                      onBlur={(e) => setEditorHook(normalizeBullets(e.target.value))}
-                      rows={3}
-                      className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-cyan-500"
-                      placeholder="Generated hook variant content..."
-                    />
+                    <div className="relative">
+                      <textarea
+                        value={editorHook}
+                        onChange={(e) => setEditorHook(e.target.value)}
+                        onBlur={(e) => setEditorHook(normalizeBullets(e.target.value))}
+                        rows={3}
+                        className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-cyan-500"
+                        placeholder="Generated hook variant content..."
+                      />
+                      {generating && !editorHook && (
+                        <div className="absolute inset-0 bg-card border border-border rounded-xl p-4.5 flex flex-col gap-3 justify-center">
+                          <div className="h-2.5 w-3/4 bg-zinc-800/80 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-1/2 bg-zinc-800/80 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-5/6 bg-zinc-800/80 rounded-md animate-pulse" />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Script Text Body Section */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Full Script / Body Layout</span>
-                      <span className="text-[10px] text-zinc-500 font-mono">{editorScript.length} characters</span>
+                      <div className="flex items-center gap-2">
+                        {generating && (
+                          <div className="flex items-center gap-1.5 text-[9px] text-cyan-400 font-mono font-bold uppercase animate-pulse">
+                            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
+                            <span>Streaming tokens...</span>
+                          </div>
+                        )}
+                        <span className="text-[10px] text-zinc-500 font-mono">{editorScript.length} characters</span>
+                      </div>
                     </div>
                     <div className="relative">
                       <textarea
                         value={editorScript}
                         onChange={(e) => setEditorScript(e.target.value)}
                         onBlur={(e) => setEditorScript(normalizeBullets(e.target.value))}
-                        className="w-full h-72 bg-card border border-border rounded-xl p-5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-indigo-500"
+                        className={`w-full h-72 bg-card border border-border rounded-xl p-5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-indigo-500 ${
+                          generating ? 'ring-1 ring-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.05)]' : ''
+                        }`}
                         placeholder="Core script explanation content body..."
                       />
-                      {generating && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] rounded-xl flex flex-col items-center justify-center gap-2">
-                          <Loader2 className="h-6 w-6 text-cyan-400 animate-spin" />
-                          <span className="text-[11px] text-zinc-400 font-mono animate-pulse">
-                            {generationSteps[generationStep]}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -1581,14 +1617,22 @@ export function ContentStudioPage(props: {
                       )}
                     </div>
 
-                    <textarea
-                      value={editorCta}
-                      onChange={(e) => setEditorCta(e.target.value)}
-                      onBlur={(e) => setEditorCta(normalizeBullets(e.target.value))}
-                      rows={3}
-                      className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-purple-500"
-                      placeholder="CTA text variant content..."
-                    />
+                    <div className="relative">
+                      <textarea
+                        value={editorCta}
+                        onChange={(e) => setEditorCta(e.target.value)}
+                        onBlur={(e) => setEditorCta(normalizeBullets(e.target.value))}
+                        rows={3}
+                        className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-purple-500"
+                        placeholder="CTA text variant content..."
+                      />
+                      {generating && !editorCta && (
+                        <div className="absolute inset-0 bg-card border border-border rounded-xl p-4.5 flex flex-col gap-3 justify-center">
+                          <div className="h-2.5 w-3/4 bg-zinc-800/80 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-1/2 bg-zinc-800/80 rounded-md animate-pulse" />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                 </div>
@@ -1633,8 +1677,6 @@ export function ContentStudioPage(props: {
 
               </motion.div>
             )}
-
-          </AnimatePresence>
 
         </div>
       </div>

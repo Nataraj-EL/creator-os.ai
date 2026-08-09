@@ -170,4 +170,106 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
     assert.ok(runtimeRecord);
     assert.strictEqual(runtimeRecord.source, 'runtime');
   });
+
+  await t.test('6. Integration: Generate -> Evaluate -> Persist -> GET /api/evaluation', async () => {
+    const memoryRepo = new InMemoryEvaluationRepository();
+    EvaluationRepositoryFactory.registerRepository(memoryRepo);
+
+    const token = createMockToken('user-1', 'ws-allowed', { workspaces: ['ws-allowed'] });
+    
+    const testEvalResult: EvaluationResult = {
+      evaluationId: 'eval-integration-test-999',
+      context: {
+        requestId: 'req-integration-test-999',
+        creatorId: 'user-1',
+        stage: EvaluationStage.GENERATION,
+        provider: 'LLM-Judge',
+        model: 'gemini-1.5-pro',
+        metadata: {
+          inputPrompt: 'Integration Prompt',
+          generatedContent: 'Integration Output Content',
+          tenantId: 'tenant-a',
+          workspaceId: 'ws-allowed'
+        }
+      },
+      status: EvaluationStatus.COMPLETED,
+      metrics: [],
+      overallScore: 92,
+      decision: 'PASS',
+      latencyMs: 120,
+      createdAt: new Date().toISOString()
+    };
+    
+    await memoryRepo.save(testEvalResult);
+
+    const req = new Request('http://localhost/api/evaluation?workspaceId=ws-allowed', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    const res = await getEvaluations(req);
+    assert.strictEqual(res.status, 200);
+    const list = await res.json();
+    
+    const found = list.find((item: any) => item.evaluationId === 'eval-integration-test-999');
+    assert.ok(found);
+    assert.strictEqual(found.overallScore, 92);
+    assert.strictEqual(found.context?.requestId, 'req-integration-test-999');
+    assert.strictEqual(found.context?.metadata?.tenantId, undefined); // sensitive stripped
+  });
+
+  await t.test('7. Tenant and Workspace Isolation validation in repository & API', async () => {
+    const memoryRepo = new InMemoryEvaluationRepository();
+    EvaluationRepositoryFactory.registerRepository(memoryRepo);
+
+    await memoryRepo.save(sampleResult);
+
+    // Fetch using token from tenant-b
+    const tokenB = createMockToken('user-2', 'ws-allowed', { tenantId: 'tenant-b', workspaces: ['ws-allowed'] });
+    const req = new Request('http://localhost/api/evaluation?workspaceId=ws-allowed', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    
+    const res = await getEvaluations(req);
+    assert.strictEqual(res.status, 200);
+    const list = await res.json();
+    
+    const found = list.find((item: any) => item.evaluationId === 'eval-runtime-test123');
+    assert.ok(!found);
+  });
+
+  await t.test('8. Robustness: Missing context or metadata normalization verification', async () => {
+    const memoryRepo = new InMemoryEvaluationRepository();
+    
+    // Save legacy mock result bypassing normal check constraints
+    const mockRecord: any = {
+      evaluationId: 'eval-legacy-malformed-777',
+      context: {
+        metadata: {
+          tenantId: 'tenant-a',
+          workspaceId: 'ws-allowed'
+        }
+      },
+      status: EvaluationStatus.COMPLETED,
+      metrics: [],
+      overallScore: 80,
+      latencyMs: 100,
+      createdAt: new Date().toISOString()
+    };
+    (memoryRepo as any).records.set(mockRecord.evaluationId, mockRecord);
+    EvaluationRepositoryFactory.registerRepository(memoryRepo);
+
+    const token = createMockToken('user-1', 'ws-allowed', { workspaces: ['ws-allowed'] });
+    const response = await getEvaluations(new Request('http://localhost/api/evaluation?workspaceId=ws-allowed', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    }));
+    
+    assert.strictEqual(response.status, 200);
+    const list = await response.json();
+    const found = list.find((item: any) => item.evaluationId === 'eval-legacy-malformed-777');
+    assert.ok(found);
+    assert.strictEqual(found.context?.requestId, 'N/A'); // normalized safely
+  });
 });

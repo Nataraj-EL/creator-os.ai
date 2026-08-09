@@ -129,7 +129,7 @@ export async function GET(request: Request) {
     const runs = await repository.listRecent(tenantId, workspaceId, limit);
     return NextResponse.json(runs.map(sanitizeEvaluation));
   } catch (err: any) {
-    console.error("[Evaluation API] GET handler failed:", err.message);
+    console.error("[Evaluation API] GET handler failed:", err.stack || err.message);
     return NextResponse.json(
       { error: "An internal error occurred while fetching evaluations." },
       { status: 500 }

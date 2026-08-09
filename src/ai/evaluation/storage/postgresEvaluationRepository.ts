@@ -6,8 +6,10 @@ export class InMemoryEvaluationRepository implements EvaluationRepository {
   private records: Map<string, EvaluationResult> = new Map();
 
   public async save(result: EvaluationResult): Promise<void> {
-    const tenantId = result.context.metadata?.tenantId;
-    const workspaceId = result.context.metadata?.workspaceId;
+    const context = result.context || {};
+    const metadata = context.metadata || {};
+    const tenantId = metadata.tenantId;
+    const workspaceId = metadata.workspaceId;
     if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
       throw new Error("Missing or unauthorized tenant/workspace context.");
     }
@@ -20,7 +22,9 @@ export class InMemoryEvaluationRepository implements EvaluationRepository {
     }
     const r = this.records.get(id);
     if (!r) return null;
-    if (r.context.metadata?.tenantId !== tenantId || r.context.metadata?.workspaceId !== workspaceId) {
+    const context = r.context || {};
+    const metadata = context.metadata || {};
+    if (metadata.tenantId !== tenantId || metadata.workspaceId !== workspaceId) {
       return null;
     }
     return r;
@@ -30,11 +34,15 @@ export class InMemoryEvaluationRepository implements EvaluationRepository {
     if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
       throw new Error("Missing or unauthorized tenant/workspace context.");
     }
-    return Array.from(this.records.values()).filter(r =>
-      r.context.requestId === requestId &&
-      r.context.metadata?.tenantId === tenantId &&
-      r.context.metadata?.workspaceId === workspaceId
-    );
+    return Array.from(this.records.values()).filter(r => {
+      const context = r.context || {};
+      const metadata = context.metadata || {};
+      return (
+        context.requestId === requestId &&
+        metadata.tenantId === tenantId &&
+        metadata.workspaceId === workspaceId
+      );
+    });
   }
 
   public async listRecent(tenantId: string, workspaceId: string, limit: number = 20): Promise<EvaluationResult[]> {
@@ -42,10 +50,14 @@ export class InMemoryEvaluationRepository implements EvaluationRepository {
       throw new Error("Missing or unauthorized tenant/workspace context.");
     }
     return Array.from(this.records.values())
-      .filter(r =>
-        r.context.metadata?.tenantId === tenantId &&
-        r.context.metadata?.workspaceId === workspaceId
-      )
+      .filter(r => {
+        const context = r.context || {};
+        const metadata = context.metadata || {};
+        return (
+          metadata.tenantId === tenantId &&
+          metadata.workspaceId === workspaceId
+        );
+      })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit);
   }
@@ -116,8 +128,10 @@ export class PostgresEvaluationRepository implements EvaluationRepository {
       return this.fallback.save(result);
     }
 
-    const tenantId = result.context.metadata?.tenantId;
-    const workspaceId = result.context.metadata?.workspaceId;
+    const context = result.context || {};
+    const metadata = context.metadata || {};
+    const tenantId = metadata.tenantId;
+    const workspaceId = metadata.workspaceId;
     if (!tenantId || tenantId === 'default' || !workspaceId || workspaceId === 'default') {
       throw new Error("Missing or unauthorized tenant/workspace context.");
     }
@@ -136,16 +150,16 @@ export class PostgresEvaluationRepository implements EvaluationRepository {
       `;
       const values = [
         result.evaluationId,
-        result.context.requestId,
-        result.context.creatorId || 'default',
-        result.context.stage,
-        result.context.provider || 'Unknown',
-        result.context.model || 'Unknown',
+        context.requestId || 'N/A',
+        context.creatorId || 'default',
+        context.stage || 'GENERATION',
+        context.provider || 'Unknown',
+        context.model || 'Unknown',
         result.overallScore,
         result.decision || 'PASS',
         result.latencyMs,
-        JSON.stringify(result.metrics),
-        JSON.stringify(result.context.metadata || {}),
+        JSON.stringify(result.metrics || []),
+        JSON.stringify(metadata),
         tenantId,
         workspaceId,
         result.createdAt || new Date().toISOString()

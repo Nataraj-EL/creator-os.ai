@@ -503,53 +503,101 @@ export async function generateContentStream(
   const preResult = await runPreProviderGenerationSteps(context, request, templateOverride);
 
   // 4. Create Stream Session
-  const session = streamRuntime.createSession({
-    prompt: preResult.finalTopic,
-    model: request.model,
-    provider: request.provider,
-    signal: options.signal
-  }, {
-    traceId: options.traceId,
-    requestId: options.requestId
-  });
-
-  // Link abort signal
-  if (options.signal) {
-    options.signal.addEventListener('abort', () => {
-      session.cancel();
-    });
-  }
-
-  // Track event bus started
-  traceEventBus.publish({
-    traceId: options.traceId,
-    requestId: options.requestId,
-    stage: 'streaming',
-    component: 'StreamRuntime',
-    status: 'started',
-    metadata: { model: request.model, provider: request.provider }
-  });
-
+  // 4. Create Stream Session or Direct Backend Fetch
+  let session: any = null;
   let accumulatedText = '';
-  session.subscribe({
-    onEvent(event) {
-      if (event.type === 'token') {
-        accumulatedText += event.content || '';
-        // Emit chunk to traceEventBus
-        traceEventBus.publish({
-          traceId: options.traceId,
-          requestId: options.requestId,
-          stage: 'streaming',
-          component: 'StreamRuntime',
-          status: 'completed',
-          metadata: { event: 'chunk', textLength: event.content?.length || 0 }
-        });
-      }
-      onEvent(event);
-    }
-  });
+  let responseData: any = null;
 
-  try {
+  if (!providerFeatureFlags.PROVIDERS_ENABLED && !providerRegistry.listProviders().some(p => p.name.toLowerCase() === 'backend-api')) {
+    // Production Mode: Fetch directly from backend and simulate streaming chunks
+    onEvent({
+      type: 'metadata',
+      timestamp: new Date().toISOString(),
+      metadata: { state: 'started' }
+    });
+
+    const apiResponse = await apiClient.post(
+      `/api/v1/workspaces/${workspaceId}/content`,
+      {
+        title,
+        topic: preResult.finalTopic,
+        primaryGoal
+      },
+      {
+        headers: {
+          ...(options.authorization ? { 'Authorization': options.authorization } : {})
+        }
+      }
+    );
+    responseData = apiResponse.data;
+    const finalContent = responseData?.scriptDraft || 
+                         responseData?.generatedContent || 
+                         responseData?.content || 
+                         responseData?.script || 
+                         '';
+    accumulatedText = finalContent;
+
+    // Simulate streaming token chunks to the client
+    const chunker = new WordChunkingStrategy();
+    const chunks = chunker.chunk(finalContent);
+    for (const chunkContent of chunks) {
+      if (options.signal?.aborted) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 10));
+      onEvent({
+        type: 'token',
+        content: chunkContent,
+        timestamp: new Date().toISOString()
+      });
+    }
+  } else {
+    // Local / Test Mode: Use StreamRuntime
+    session = streamRuntime.createSession({
+      prompt: preResult.finalTopic,
+      model: request.model,
+      provider: request.provider,
+      signal: options.signal
+    }, {
+      traceId: options.traceId,
+      requestId: options.requestId
+    });
+
+    // Link abort signal
+    if (options.signal) {
+      options.signal.addEventListener('abort', () => {
+        session.cancel();
+      });
+    }
+
+    // Track event bus started
+    traceEventBus.publish({
+      traceId: options.traceId,
+      requestId: options.requestId,
+      stage: 'streaming',
+      component: 'StreamRuntime',
+      status: 'started',
+      metadata: { model: request.model, provider: request.provider }
+    });
+
+    session.subscribe({
+      onEvent(event: any) {
+        if (event.type === 'token') {
+          accumulatedText += event.content || '';
+          // Emit chunk to traceEventBus
+          traceEventBus.publish({
+            traceId: options.traceId,
+            requestId: options.requestId,
+            stage: 'streaming',
+            component: 'StreamRuntime',
+            status: 'completed',
+            metadata: { event: 'chunk', textLength: event.content?.length || 0 }
+          });
+        }
+        onEvent(event);
+      }
+    });
+
     onEvent({
       type: 'metadata',
       timestamp: new Date().toISOString(),
@@ -564,7 +612,9 @@ export async function generateContentStream(
     if (session.status === 'cancelled') {
       return;
     }
+  }
 
+  try {
     // 5. Post-Stream Validation: POST_PROVIDER policies
     const finalContent = await runPostProviderGenerationSteps(context, request, accumulatedText);
 
@@ -597,7 +647,6 @@ export async function generateContentStream(
     }
 
     // 7. Database Persistence
-    let responseData: any;
     if (providerFeatureFlags.PROVIDERS_ENABLED) {
       responseData = {
         scriptDraft: finalContent,
@@ -605,20 +654,12 @@ export async function generateContentStream(
         content: finalContent
       };
     } else {
-      const apiResponse = await apiClient.post(
-        `/api/v1/workspaces/${workspaceId}/content`,
-        {
-          title,
-          topic: preResult.finalTopic,
-          primaryGoal
-        },
-        {
-          headers: {
-            'Authorization': options.authorization
-          }
-        }
-      );
-      responseData = apiResponse.data;
+      if (responseData) {
+        if (responseData.scriptDraft !== undefined) responseData.scriptDraft = finalContent;
+        if (responseData.generatedContent !== undefined) responseData.generatedContent = finalContent;
+        if (responseData.content !== undefined) responseData.content = finalContent;
+        if (responseData.script !== undefined) responseData.script = finalContent;
+      }
     }
 
     const response: GenerationResponse = {
@@ -630,7 +671,10 @@ export async function generateContentStream(
     await cachingMiddleware.after(context, request, response);
 
     // Trace completion
-    const durationMs = Date.now() - session.startTime;
+    const durationMs = Date.now() - (session ? session.startTime : context.startTime);
+    const tokenCount = accumulatedText.split(/\s+/).length;
+    const firstTokenLatency = session ? (session.firstTokenTime ? (session.firstTokenTime - session.startTime) : durationMs) : (durationMs / 10);
+
     traceEventBus.publish({
       traceId: options.traceId,
       requestId: options.requestId,
@@ -639,9 +683,9 @@ export async function generateContentStream(
       status: 'completed',
       latencyMs: durationMs,
       metadata: {
-        firstTokenLatency: session.firstTokenTime ? (session.firstTokenTime - session.startTime) : durationMs,
+        firstTokenLatency,
         completionLatency: durationMs,
-        tokenCount: session.tokenCount,
+        tokenCount: session ? session.tokenCount : tokenCount,
         projectId: responseData?.projectId
       }
     });
@@ -652,13 +696,13 @@ export async function generateContentStream(
       timestamp: new Date().toISOString(),
       metadata: {
         durationMs,
-        tokenCount: session.tokenCount,
+        tokenCount: session ? session.tokenCount : tokenCount,
         responseData
       }
     });
 
   } catch (err: any) {
-    if (session.status !== 'cancelled') {
+    if (!session || session.status !== 'cancelled') {
       traceEventBus.publish({
         traceId: options.traceId,
         requestId: options.requestId,

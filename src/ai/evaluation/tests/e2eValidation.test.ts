@@ -5,7 +5,7 @@ import { evaluationService } from '../services';
 import { PostgresEvaluationRepository, InMemoryEvaluationRepository } from '../storage/postgresEvaluationRepository';
 import { EvaluationRepositoryFactory } from '../storage/repositoryFactory';
 import { traceEventBus } from '../../observability';
-import { providerResolver } from '../../providers';
+import { providerResolver, providerRegistry } from '../../providers';
 import { featureFlags as evalFeatureFlags } from '../config/featureFlags';
 import { featureFlags as cacheFeatureFlags } from '../../cache/config/featureFlags';
 import { featureFlags as providerFeatureFlags } from '../../providers/config/featureFlags';
@@ -407,6 +407,87 @@ test('Production E2E Validation & Integration Boundary Suite', async (t) => {
     assert.strictEqual(resInvalid.status, 403); // Forbidden
 
     providerFeatureFlags.PROVIDERS_ENABLED = originalProviders;
+  });
+
+  await t.test('6. Regression: Content Studio content generation integrity & Promptfoo isolation', async () => {
+    const originalProviders = providerFeatureFlags.PROVIDERS_ENABLED;
+    providerFeatureFlags.PROVIDERS_ENABLED = true;
+
+    // Stub a mock provider to return specific non-empty content
+    const testScriptText = 'Verified regression script content.';
+    const mockProv = {
+      name: 'Backend-API',
+      capabilities: { streaming: false },
+      generate: async () => ({
+        content: testScriptText,
+        model: 'Backend-LLM',
+        metadata: { scriptDraft: testScriptText }
+      })
+    };
+    providerRegistry.register(mockProv as any);
+
+    // Track if evaluation executes
+    let evalExecuted = false;
+    const originalEvaluate = evaluationService.evaluate;
+    evaluationService.evaluate = async (ctx) => {
+      evalExecuted = true;
+      // Return a PASS result, ensuring it does not mutate content
+      return { status: 'COMPLETED', overallScore: 90, decision: 'PASS', metrics: [] } as any;
+    };
+
+    // Construct mock JWT token
+    const createToken = (userId: string, activeWorkspaceId: string): string => {
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+      const payload = Buffer.from(JSON.stringify({
+        id: userId,
+        role: 'CREATOR',
+        email: 'creator@regression.com',
+        activeWorkspaceId,
+        tenantId: 'regression.com',
+        exp: Math.floor(Date.now() / 1000) + 3600
+      })).toString('base64');
+      return `${header}.${payload}.signature`;
+    };
+
+    const token = createToken('regress-user', 'ws-regress');
+
+    const originalResolve = providerResolver.resolve;
+    providerResolver.resolve = () => mockProv as any;
+
+    try {
+      // Trigger a standard non-streaming generation
+      const req = new Request('http://localhost/api/content/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: 'Regression check title',
+          topic: 'Regression topic details',
+          primaryGoal: 'Reach',
+          workspaceId: 'ws-regress',
+          stream: false
+        })
+      });
+
+      const response = await postGenerate(req);
+      assert.strictEqual(response.status, 200);
+
+      const body = await response.json();
+      
+      // 1. Assert content returned is non-empty and matching the generated provider content
+      assert.strictEqual(body.scriptDraft, testScriptText);
+      assert.strictEqual(body.content, testScriptText);
+      
+      // 2. Assert evaluation executed
+      assert.ok(evalExecuted);
+
+    } finally {
+      providerRegistry.unregister('Backend-API');
+      evaluationService.evaluate = originalEvaluate;
+      providerResolver.resolve = originalResolve;
+      providerFeatureFlags.PROVIDERS_ENABLED = originalProviders;
+    }
   });
 
   // Restore global mocks

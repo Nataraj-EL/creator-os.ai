@@ -397,10 +397,13 @@ export default function DeveloperEvaluationConsole() {
   
   // Execution Triggers State
   const [runningEval, setRunningEval] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [simulatedLogs, setSimulatedLogs] = useState<string[]>([]);
 
   // Load records
   const loadRecords = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
     try {
       const token = useAuthStore.getState().accessToken;
       const ws = useAuthStore.getState().activeWorkspace;
@@ -438,6 +441,8 @@ export default function DeveloperEvaluationConsole() {
       await loadExperiments();
     } catch (e) {
       console.error(e);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -752,39 +757,48 @@ export default function DeveloperEvaluationConsole() {
           <p className="text-sm text-zinc-400 mt-1">Audit run tracing, provider latency comparisons, prompt performance scores, and raw model payloads.</p>
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto">
-          <button
-            onClick={handleClearRecords}
-            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-red-950/10 border border-red-500/10 hover:bg-red-950/30 hover:border-red-500/30 text-red-400 font-medium text-xs cursor-pointer transition-all focus:outline-none flex items-center justify-center gap-2"
-          >
-            Clear Logs
-          </button>
-          
-          <button
-            onClick={loadRecords}
-            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-zinc-300 font-medium text-xs cursor-pointer transition-all focus:outline-none flex items-center justify-center gap-2"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            <span>Refresh</span>
-          </button>
+        <div className="flex flex-col items-stretch md:items-end gap-2 w-full md:w-auto">
+          <div className="flex gap-3 w-full md:w-auto">
+            <button
+              onClick={handleClearRecords}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-red-950/10 border border-red-500/10 hover:bg-red-950/30 hover:border-red-500/30 text-red-400 font-medium text-xs cursor-pointer transition-all focus:outline-none flex items-center justify-center gap-2"
+            >
+              Clear Logs
+            </button>
+            
+            <button
+              onClick={loadRecords}
+              disabled={refreshing}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#a1461c] to-[#dd6b20] hover:from-[#b85324] hover:to-[#e37e36] font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: '#faf8f4' }}
+            >
+              <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} style={{ color: '#faf8f4' }} />
+              <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
 
-          <button
-            onClick={handleRunEvaluation}
-            disabled={runningEval}
-            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 disabled:from-cyan-950 disabled:to-indigo-950 text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/10 transition-all border border-transparent focus:outline-none disabled:cursor-not-allowed"
-          >
-            {runningEval ? (
-              <>
-                <RefreshCcw className="h-4.5 w-4.5 animate-spin" />
-                <span>Running Audit...</span>
-              </>
-            ) : (
-              <>
-                <Play className="h-4.5 w-4.5" />
-                <span>Run Evaluation</span>
-              </>
-            )}
-          </button>
+            <button
+              onClick={handleRunEvaluation}
+              disabled={runningEval}
+              className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#a1461c] to-[#dd6b20] hover:from-[#b85324] hover:to-[#e37e36] font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: '#faf8f4' }}
+              title="Run Evaluation manually evaluates the selected/latest generation using the configured evaluation pipeline."
+            >
+              {runningEval ? (
+                <>
+                  <RefreshCcw className="h-4.5 w-4.5 animate-spin" style={{ color: '#faf8f4' }} />
+                  <span>Running Audit...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-4.5 w-4.5" style={{ color: '#faf8f4' }} />
+                  <span>Run Evaluation</span>
+                </>
+              )}
+            </button>
+          </div>
+          <span className="text-[10px] text-zinc-500 text-center md:text-right font-medium">
+            Run Evaluation manually evaluates the selected/latest generation using the configured evaluation pipeline.
+          </span>
         </div>
       </div>
 
@@ -814,43 +828,43 @@ export default function DeveloperEvaluationConsole() {
       {/* SUMMARY METRICS CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col justify-between">
-          <span className="text-xs text-zinc-400 font-medium">Total Runs</span>
+          <span className="text-xs text-zinc-700 font-bold">Total Runs</span>
           <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-white">{totalEvals}</span>
+            <span className="text-2xl font-black text-zinc-900">{totalEvals}</span>
             <span className="text-[10px] text-zinc-500 font-semibold">audits</span>
           </div>
         </div>
 
         <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col justify-between">
-          <span className="text-xs text-zinc-400 font-medium">Average Score</span>
+          <span className="text-xs text-zinc-700 font-bold">Average Score</span>
           <div className="mt-3 flex items-baseline gap-1">
             <span className={`text-2xl font-black ${
-              avgScore >= 80 ? 'text-emerald-400' : avgScore >= 60 ? 'text-amber-400' : 'text-zinc-400'
+              avgScore >= 80 ? 'text-emerald-600' : avgScore >= 60 ? 'text-amber-600' : 'text-zinc-700'
             }`}>{avgScore}%</span>
             <span className="text-[10px] text-zinc-500 font-semibold">LLM grade</span>
           </div>
         </div>
 
         <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col justify-between">
-          <span className="text-xs text-zinc-400 font-medium">Avg Latency</span>
+          <span className="text-xs text-zinc-700 font-bold">Avg Latency</span>
           <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-white">{avgLatency}</span>
+            <span className="text-2xl font-black text-zinc-900">{avgLatency}</span>
             <span className="text-[10px] text-zinc-500 font-semibold">ms</span>
           </div>
         </div>
 
         <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col justify-between">
-          <span className="text-xs text-zinc-400 font-medium">Success Rate</span>
+          <span className="text-xs text-zinc-700 font-bold">Success Rate</span>
           <div className="mt-3 flex items-baseline gap-1">
-            <span className="text-2xl font-black text-emerald-400">{successRate}%</span>
+            <span className="text-2xl font-black text-emerald-600">{successRate}%</span>
             <span className="text-[10px] text-zinc-500 font-semibold">passed</span>
           </div>
         </div>
 
         <div className="glass-card rounded-2xl p-5 border border-white/5 col-span-2 lg:col-span-1 flex flex-col justify-between">
-          <span className="text-xs text-zinc-400 font-medium">Failed Audits</span>
+          <span className="text-xs text-zinc-700 font-bold">Failed Audits</span>
           <div className="mt-3 flex items-baseline gap-1">
-            <span className={`text-2xl font-black ${failedEvals.length > 0 ? 'text-red-400' : 'text-zinc-500'}`}>{failedEvals.length}</span>
+            <span className={`text-2xl font-black ${failedEvals.length > 0 ? 'text-red-600' : 'text-zinc-500'}`}>{failedEvals.length}</span>
             <span className="text-[10px] text-zinc-500 font-semibold">errors</span>
           </div>
         </div>
@@ -860,28 +874,28 @@ export default function DeveloperEvaluationConsole() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* PASS/WARN/FAIL Distribution */}
         <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Decision Distribution</h4>
+          <h4 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Decision Distribution</h4>
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-zinc-400 flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded bg-emerald-500" />
+              <span className="text-zinc-700 flex items-center gap-1.5 font-medium">
+                <span className="h-2.5 w-2.5 rounded bg-emerald-600" />
                 <span>PASS</span>
               </span>
-              <span className="text-white font-bold">{passCount} ({totalEvals ? Math.round(passCount / totalEvals * 100) : 0}%)</span>
+              <span className="text-zinc-900 font-extrabold">{passCount} ({totalEvals ? Math.round(passCount / totalEvals * 100) : 0}%)</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-zinc-400 flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded bg-amber-500" />
+              <span className="text-zinc-700 flex items-center gap-1.5 font-medium">
+                <span className="h-2.5 w-2.5 rounded bg-amber-600" />
                 <span>WARN</span>
               </span>
-              <span className="text-white font-bold">{warnCount} ({totalEvals ? Math.round(warnCount / totalEvals * 100) : 0}%)</span>
+              <span className="text-zinc-900 font-extrabold">{warnCount} ({totalEvals ? Math.round(warnCount / totalEvals * 100) : 0}%)</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-zinc-400 flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded bg-red-500" />
+              <span className="text-zinc-700 flex items-center gap-1.5 font-medium">
+                <span className="h-2.5 w-2.5 rounded bg-red-600" />
                 <span>FAIL</span>
               </span>
-              <span className="text-white font-bold">{failCount} ({totalEvals ? Math.round(failCount / totalEvals * 100) : 0}%)</span>
+              <span className="text-zinc-900 font-extrabold">{failCount} ({totalEvals ? Math.round(failCount / totalEvals * 100) : 0}%)</span>
             </div>
           </div>
         </div>
@@ -932,7 +946,7 @@ export default function DeveloperEvaluationConsole() {
           className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
             consoleTab === 'runs' 
               ? 'border-cyan-500 text-cyan-400 font-extrabold' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              : 'border-transparent text-zinc-600 hover:text-zinc-900'
           }`}
         >
           Evaluation Audit Runs
@@ -942,7 +956,7 @@ export default function DeveloperEvaluationConsole() {
           className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
             consoleTab === 'experiments' 
               ? 'border-cyan-500 text-cyan-400 font-extrabold' 
-              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              : 'border-transparent text-zinc-600 hover:text-zinc-900'
           }`}
         >
           A/B Experiments Console
@@ -953,7 +967,7 @@ export default function DeveloperEvaluationConsole() {
             className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
               consoleTab === 'streaming' 
                 ? 'border-cyan-500 text-cyan-400 font-extrabold' 
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                : 'border-transparent text-zinc-600 hover:text-zinc-900'
             }`}
           >
             Streaming Sandbox
@@ -965,7 +979,7 @@ export default function DeveloperEvaluationConsole() {
             className={`py-3 px-6 text-sm font-bold transition-all border-b-2 cursor-pointer focus:outline-none ${
               consoleTab === 'tools' 
                 ? 'border-cyan-500 text-cyan-400 font-extrabold' 
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                : 'border-transparent text-zinc-600 hover:text-zinc-900'
             }`}
           >
             Tools Sandbox
@@ -1077,13 +1091,13 @@ export default function DeveloperEvaluationConsole() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.01]">
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Timestamp</th>
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Evaluation ID</th>
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Request ID</th>
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Stage</th>
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Provider</th>
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider text-right">Latency</th>
-                    <th className="p-4 text-xs font-semibold text-zinc-400 uppercase tracking-wider text-center">Score</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider">Timestamp</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider">Evaluation ID</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider">Request ID</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider">Stage</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider">Provider</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider text-right">Latency</th>
+                    <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider text-center">Score</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -1321,7 +1335,7 @@ export default function DeveloperEvaluationConsole() {
                       className={`flex-1 py-2 text-center text-xs font-bold transition-all border-b-2 cursor-pointer ${
                         inspectTab === 'parsed' 
                           ? 'border-cyan-500 text-cyan-400' 
-                          : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                          : 'border-transparent text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
                       Metrics Breakdown
@@ -1331,7 +1345,7 @@ export default function DeveloperEvaluationConsole() {
                       className={`flex-1 py-2 text-center text-xs font-bold transition-all border-b-2 cursor-pointer ${
                         inspectTab === 'raw' 
                           ? 'border-cyan-500 text-cyan-400' 
-                          : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                          : 'border-transparent text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
                       Raw Judge Payload
@@ -1341,7 +1355,7 @@ export default function DeveloperEvaluationConsole() {
                       className={`flex-1 py-2 text-center text-xs font-bold transition-all border-b-2 cursor-pointer ${
                         inspectTab === 'trace' 
                           ? 'border-cyan-500 text-cyan-400' 
-                          : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                          : 'border-transparent text-zinc-600 hover:text-zinc-900'
                       }`}
                     >
                       AI Pipeline Trace

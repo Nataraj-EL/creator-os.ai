@@ -72,8 +72,9 @@ export interface EvaluationProvider {
 
 export interface EvaluationRepository {
   save(result: EvaluationResult): Promise<void>;
-  getById(id: string): Promise<EvaluationResult | null>;
-  getByRequestId(requestId: string): Promise<EvaluationResult[]>;
+  getById(id: string, tenantId: string, workspaceId: string): Promise<EvaluationResult | null>;
+  getByRequestId(requestId: string, tenantId: string, workspaceId: string): Promise<EvaluationResult[]>;
+  listRecent(tenantId: string, workspaceId: string, limit?: number): Promise<EvaluationResult[]>;
 }
 
 export interface EvaluationLogger {

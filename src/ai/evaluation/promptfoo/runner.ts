@@ -10,6 +10,8 @@ export interface RunnerOptions {
   providerName: string;
   modelName: string;
   mockMode?: boolean;
+  tenantId?: string;
+  workspaceId?: string;
 }
 
 export async function runRegression(options: RunnerOptions): Promise<{
@@ -63,13 +65,14 @@ export async function runRegression(options: RunnerOptions): Promise<{
       try {
         const genResult = await generateContent(
           'eval-system-user',
-          'eval-system-workspace',
+          options.workspaceId || 'ws-a',
           title,
           topic,
           primaryGoal,
           {
             provider: options.providerName,
-            model: options.modelName
+            model: options.modelName,
+            tenantId: options.tenantId || 'tenant-a'
           }
         );
 
@@ -137,7 +140,7 @@ export async function runRegression(options: RunnerOptions): Promise<{
       return {
         evaluationId: `eval-pf-${Math.random().toString(36).substring(2, 9)}`,
         context: {
-          requestId: `req-pf-${Date.now()}`,
+          requestId: `req-pf-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
           creatorId: 'eval-system-user',
           stage: EvaluationStage.GENERATION,
           provider: options.providerName,
@@ -145,7 +148,11 @@ export async function runRegression(options: RunnerOptions): Promise<{
           metadata: {
             vars: r.vars,
             prompt: r.prompt?.raw,
-            startTime: Date.now() - r.latencyMs
+            startTime: Date.now() - r.latencyMs,
+            tenantId: options.tenantId || 'tenant-a',
+            workspaceId: options.workspaceId || 'ws-a',
+            tokenUsage: { prompt: 100, completion: 150, total: 250 },
+            estimatedCost: options.providerName === 'mock' ? 0.0 : 0.0001
           }
         },
         status: r.success ? EvaluationStatus.COMPLETED : EvaluationStatus.FAILED,
@@ -160,6 +167,54 @@ export async function runRegression(options: RunnerOptions): Promise<{
     const total = results.length;
     const passed = results.filter((r: EvaluationResult) => r.status === EvaluationStatus.COMPLETED).length;
     const failed = total - passed;
+    const totalLatency = results.reduce((sum: number, r: EvaluationResult) => sum + r.latencyMs, 0);
+    const totalCost = results.reduce((sum: number, r: EvaluationResult) => sum + (r.context.metadata?.estimatedCost || 0.0), 0);
+
+    // Collect names of failed test cases without sensitive prompts/generatedContent
+    const failedCases = results
+      .filter((r: EvaluationResult) => r.status === EvaluationStatus.FAILED)
+      .map((r: EvaluationResult, idx: number) => {
+        const title = r.context.metadata?.vars?.title || `Test Case #${idx + 1}`;
+        const reason = r.metrics.find(m => m.status === 'fail')?.reason || 'Assertion check failed';
+        return `${title}: ${reason}`;
+      });
+
+    // Create a single overall regression summary to persist
+    const runId = `pf-run-${Math.random().toString(36).substring(2, 9)}`;
+    const summaryResult: EvaluationResult = {
+      evaluationId: `eval-${runId}`,
+      context: {
+        requestId: `req-${runId}`,
+        creatorId: 'eval-system-user',
+        stage: EvaluationStage.GENERATION,
+        provider: options.providerName,
+        model: options.modelName,
+        metadata: {
+          datasetVersion: "1.0.0",
+          passCount: passed,
+          failCount: failed,
+          totalCount: total,
+          tokenUsage: { prompt: 100 * total, completion: 150 * total, total: 250 * total },
+          estimatedCost: totalCost,
+          failedCases,
+          tenantId: options.tenantId || 'tenant-a',
+          workspaceId: options.workspaceId || 'ws-a'
+        }
+      },
+      status: failed === 0 ? EvaluationStatus.COMPLETED : EvaluationStatus.FAILED,
+      metrics: [], // Do NOT persist prompts, raw metrics, or assertions details
+      overallScore: total > 0 ? Math.round((passed / total) * 100) : 0,
+      latencyMs: totalLatency,
+      createdAt: new Date().toISOString(),
+      decision: failed === 0 ? 'PASS' : 'FAIL'
+    };
+
+    // Save ONLY the sanitized regression run summary to the repository
+    const { EvaluationRepositoryFactory } = await import('../storage/repositoryFactory');
+    const repo = EvaluationRepositoryFactory.getRepository();
+    await repo.save(summaryResult).catch(err => {
+      console.warn(`[Promptfoo-Runner] Failed to persist evaluation record: ${err.message}`);
+    });
 
     return {
       results,

@@ -31,14 +31,33 @@ export class LocalStorageEvaluationRepository implements EvaluationRepository {
     }
   }
 
-  public async getById(id: string): Promise<EvaluationResult | null> {
+  public async getById(id: string, tenantId: string, workspaceId: string): Promise<EvaluationResult | null> {
     const records = this.getRecords();
-    return records.find(r => r.evaluationId === id) || null;
+    return records.find(r => 
+      r.evaluationId === id &&
+      r.context.metadata?.tenantId === tenantId &&
+      r.context.metadata?.workspaceId === workspaceId
+    ) || null;
   }
 
-  public async getByRequestId(requestId: string): Promise<EvaluationResult[]> {
+  public async getByRequestId(requestId: string, tenantId: string, workspaceId: string): Promise<EvaluationResult[]> {
     const records = this.getRecords();
-    return records.filter(r => r.context.requestId === requestId);
+    return records.filter(r => 
+      r.context.requestId === requestId &&
+      r.context.metadata?.tenantId === tenantId &&
+      r.context.metadata?.workspaceId === workspaceId
+    );
+  }
+
+  public async listRecent(tenantId: string, workspaceId: string, limit: number = 20): Promise<EvaluationResult[]> {
+    const records = this.getRecords();
+    return records
+      .filter(r => 
+        r.context.metadata?.tenantId === tenantId &&
+        r.context.metadata?.workspaceId === workspaceId
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
   }
 
   public async getAll(): Promise<EvaluationResult[]> {

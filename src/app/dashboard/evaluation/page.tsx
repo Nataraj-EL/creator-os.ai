@@ -124,12 +124,14 @@ const SEED_RECORDS: EvaluationResult[] = [
 
 export default function DeveloperEvaluationConsole() {
   const user = useAuthStore((state) => state.user);
+  const activeWorkspace = useAuthStore((state) => state.activeWorkspace);
   
   // Storage Repository
   const repository = EvaluationRepositoryFactory.getRepository();
 
   // Page States
   const [records, setRecords] = useState<EvaluationResult[]>([]);
+  const [evaluationSourceTab, setEvaluationSourceTab] = useState<'runtime' | 'promptfoo'>('runtime');
   const [selectedRecord, setSelectedRecord] = useState<EvaluationResult | null>(null);
   const [inspectTab, setInspectTab] = useState<'parsed' | 'raw' | 'trace'>('parsed');
   const [activeTrace, setActiveTrace] = useState<any | null>(null);
@@ -400,14 +402,36 @@ export default function DeveloperEvaluationConsole() {
   // Load records
   const loadRecords = async () => {
     try {
-      let data = await (repository as any).getAll();
-      if (!data || data.length === 0) {
-        // Seed initial data if empty
-        for (const item of SEED_RECORDS) {
-          await repository.save(item);
+      const token = useAuthStore.getState().accessToken;
+      const ws = useAuthStore.getState().activeWorkspace;
+      
+      let data: EvaluationResult[] = [];
+      if (token && ws) {
+        try {
+          const response = await fetch(`/api/evaluation?workspaceId=${ws.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            data = await response.json();
+          }
+        } catch (apiErr) {
+          console.warn("Failed to fetch evaluations from API, falling back to local storage:", apiErr);
         }
-        data = await (repository as any).getAll();
       }
+
+      // If API fetch returns nothing or fails, fallback to local storage/mock seeded records
+      if (!data || data.length === 0) {
+        data = await (repository as any).getAll();
+        if (!data || data.length === 0) {
+          for (const item of SEED_RECORDS) {
+            await repository.save(item);
+          }
+          data = await (repository as any).getAll();
+        }
+      }
+
       // Sort newest first
       const sorted = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setRecords(sorted);
@@ -428,7 +452,7 @@ export default function DeveloperEvaluationConsole() {
 
   useEffect(() => {
     loadRecords();
-  }, []);
+  }, [activeWorkspace]);
 
   useEffect(() => {
     if (!selectedRecord) {
@@ -566,6 +590,10 @@ export default function DeveloperEvaluationConsole() {
 
   // Filter records
   const filteredRecords = records.filter(r => {
+    const isPF = r.evaluationId.startsWith('eval-pf-');
+    const matchesSource = evaluationSourceTab === 'promptfoo' ? isPF : !isPF;
+    if (!matchesSource) return false;
+
     const matchesSearch = 
       r.evaluationId.toLowerCase().includes(search.toLowerCase()) ||
       r.context.requestId.toLowerCase().includes(search.toLowerCase()) ||
@@ -578,11 +606,16 @@ export default function DeveloperEvaluationConsole() {
     return matchesSearch && matchesStage && matchesProvider && matchesStatus;
   });
 
+  const activeSourceRecords = records.filter(r => {
+    const isPF = r.evaluationId.startsWith('eval-pf-');
+    return evaluationSourceTab === 'promptfoo' ? isPF : !isPF;
+  });
+
   // Summary Computations
-  const totalEvals = records.length;
-  const completedEvals = records.filter(r => r.status === EvaluationStatus.COMPLETED);
-  const failedEvals = records.filter(r => r.status === EvaluationStatus.FAILED);
-  const skippedEvals = records.filter(r => r.status === EvaluationStatus.SKIPPED);
+  const totalEvals = activeSourceRecords.length;
+  const completedEvals = activeSourceRecords.filter(r => r.status === EvaluationStatus.COMPLETED);
+  const failedEvals = activeSourceRecords.filter(r => r.status === EvaluationStatus.FAILED);
+  const skippedEvals = activeSourceRecords.filter(r => r.status === EvaluationStatus.SKIPPED);
 
   const avgScore = completedEvals.length > 0
     ? Math.round(completedEvals.reduce((sum, r) => sum + r.overallScore, 0) / completedEvals.length)
@@ -595,6 +628,33 @@ export default function DeveloperEvaluationConsole() {
   const successRate = totalEvals > 0
     ? Math.round(((completedEvals.length + skippedEvals.length) / totalEvals) * 100)
     : 100;
+
+  // PASS/WARN/FAIL distribution
+  const passCount = activeSourceRecords.filter(r => r.decision === 'PASS').length;
+  const warnCount = activeSourceRecords.filter(r => r.decision === 'WARN').length;
+  const failCount = activeSourceRecords.filter(r => r.decision === 'FAIL').length;
+
+  // Usage & Cost
+  const totalTokens = activeSourceRecords.reduce((sum, r) => sum + (r.context.metadata?.tokenUsage?.total || 0), 0);
+  const totalCost = activeSourceRecords.reduce((sum, r) => sum + (r.context.metadata?.estimatedCost || 0.0), 0);
+
+  // Model comparison
+  const modelStats = activeSourceRecords.reduce((acc: any, r) => {
+    const key = `${r.context.provider || 'Unknown'} - ${r.context.model || 'Unknown'}`;
+    if (!acc[key]) {
+      acc[key] = { key, count: 0, scoreSum: 0, latencySum: 0 };
+    }
+    acc[key].count++;
+    acc[key].scoreSum += r.overallScore;
+    acc[key].latencySum += r.latencyMs;
+    return acc;
+  }, {});
+  const modelComparisonList = Object.values(modelStats).map((s: any) => ({
+    model: s.key,
+    avgScore: Math.round(s.scoreSum / s.count),
+    avgLatency: Math.round(s.latencySum / s.count),
+    count: s.count
+  }));
 
   // Run Evaluation Action
   const handleRunEvaluation = async () => {
@@ -787,6 +847,75 @@ export default function DeveloperEvaluationConsole() {
         </div>
       </div>
 
+      {/* SUMMARY DETAILS BLOCK */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* PASS/WARN/FAIL Distribution */}
+        <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Decision Distribution</h4>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded bg-emerald-500" />
+                <span>PASS</span>
+              </span>
+              <span className="text-white font-bold">{passCount} ({totalEvals ? Math.round(passCount / totalEvals * 100) : 0}%)</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded bg-amber-500" />
+                <span>WARN</span>
+              </span>
+              <span className="text-white font-bold">{warnCount} ({totalEvals ? Math.round(warnCount / totalEvals * 100) : 0}%)</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-zinc-400 flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded bg-red-500" />
+                <span>FAIL</span>
+              </span>
+              <span className="text-white font-bold">{failCount} ({totalEvals ? Math.round(failCount / totalEvals * 100) : 0}%)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Cost & Token Usage */}
+        <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Usage & Cost Summary</h4>
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Total Tokens</span>
+              <span className="text-white font-mono font-bold">{totalTokens.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Estimated Cost</span>
+              <span className="text-cyan-400 font-mono font-bold">${totalCost.toFixed(4)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Avg Cost / Run</span>
+              <span className="text-white font-mono font-bold">${(totalEvals ? totalCost / totalEvals : 0).toFixed(6)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Provider/Model Comparison */}
+        <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
+          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Model Quality Comparison</h4>
+          <div className="max-h-32 overflow-y-auto custom-scrollbar text-[11px] space-y-2">
+            {modelComparisonList.map((m: any) => (
+              <div key={m.model} className="flex justify-between items-center border-b border-white/5 pb-1">
+                <span className="text-zinc-300 font-semibold truncate max-w-[140px]" title={m.model}>{m.model}</span>
+                <div className="flex gap-3 text-right">
+                  <span className="text-emerald-400 font-bold">{m.avgScore}% avg</span>
+                  <span className="text-zinc-500">{m.avgLatency}ms</span>
+                </div>
+              </div>
+            ))}
+            {modelComparisonList.length === 0 && (
+              <div className="text-zinc-500 text-center py-4 italic">No comparative model stats yet.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* CONSOLE TAB SWITCHER */}
       <div className="flex border-b border-white/5 mb-6">
         <button
@@ -840,6 +969,30 @@ export default function DeveloperEvaluationConsole() {
           {/* FILTER CONTROLS */}
       <div className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col md:flex-row gap-4 items-center justify-between">
         
+        {/* Source Toggle */}
+        <div className="flex gap-1 bg-white/[0.02] border border-white/[0.06] p-1 rounded-xl w-full md:w-auto shrink-0">
+          <button
+            onClick={() => setEvaluationSourceTab('runtime')}
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer focus:outline-none ${
+              evaluationSourceTab === 'runtime'
+                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                : 'border border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Production Runtime
+          </button>
+          <button
+            onClick={() => setEvaluationSourceTab('promptfoo')}
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer focus:outline-none ${
+              evaluationSourceTab === 'promptfoo'
+                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                : 'border border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Offline Promptfoo
+          </button>
+        </div>
+
         {/* Search */}
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
@@ -1189,7 +1342,52 @@ export default function DeveloperEvaluationConsole() {
                   {/* Parsed Tab */}
                   {inspectTab === 'parsed' && (
                     <div className="space-y-4">
-                      {selectedRecord.status === EvaluationStatus.COMPLETED ? (
+                      {selectedRecord.evaluationId.startsWith('eval-pf-') ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-3">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Regression Run Summary</span>
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <span className="text-zinc-500">Dataset Version</span>
+                                <p className="text-white font-bold">{selectedRecord.context.metadata?.datasetVersion || '1.0.0'}</p>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500">Pass Rate</span>
+                                <p className="text-emerald-400 font-bold">
+                                  {selectedRecord.context.metadata?.passCount} / {selectedRecord.context.metadata?.totalCount} ({selectedRecord.overallScore}% pass)
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500">Total Latency</span>
+                                <p className="text-white font-bold">{selectedRecord.latencyMs}ms</p>
+                              </div>
+                              <div>
+                                <span className="text-zinc-500">Estimated Cost</span>
+                                <p className="text-cyan-400 font-bold">${selectedRecord.context.metadata?.estimatedCost?.toFixed(4)}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Failed Regression Cases</span>
+                            <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1.5">
+                              {selectedRecord.context.metadata?.failedCases && selectedRecord.context.metadata.failedCases.length > 0 ? (
+                                selectedRecord.context.metadata.failedCases.map((c: string, idx: number) => (
+                                  <div key={idx} className="p-2.5 bg-red-500/5 border border-red-500/10 rounded-lg text-xs flex gap-2 items-start text-red-300">
+                                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                    <span>{c}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-xs flex gap-2 items-center text-emerald-400">
+                                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                  <span>All regression assertions passed!</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : selectedRecord.status === EvaluationStatus.COMPLETED ? (
                         <>
                           <div className="bg-white/[0.01] border border-white/5 rounded-xl overflow-hidden">
                             <table className="w-full text-left text-xs">

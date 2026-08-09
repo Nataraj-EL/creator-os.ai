@@ -578,7 +578,9 @@ export async function generateContentStream(
       model: request.model,
       metadata: {
         inputPrompt: preResult.finalTopic,
-        generatedContent: finalContent
+        generatedContent: finalContent,
+        tenantId: options.tenantId,
+        workspaceId
       }
     });
 

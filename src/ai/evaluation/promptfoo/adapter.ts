@@ -11,8 +11,8 @@ export async function runPromptfooEval(options: PromptfooEvalOptions): Promise<a
 
   let promptfoo: any;
   try {
-    // Dynamic import guarantees webpack excludes promptfoo from client-side compilation graphs
-    promptfoo = await import('promptfoo');
+    // webpackIgnore magic comment tells Next.js/Webpack not to trace or bundle promptfoo dependencies
+    promptfoo = await import(/* webpackIgnore: true */ 'promptfoo');
   } catch (err: any) {
     console.error('[PromptfooAdapter] Failed to dynamically load promptfoo library:', err.message);
     throw new Error(`[PromptfooAdapter] Promptfoo framework is unavailable: ${err.message}`);

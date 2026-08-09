@@ -300,16 +300,19 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
     (LlmJudgeProvider.prototype as any).callLlmWithBackoff = async function(provider: string, model: string) {
       resolvedProviderName = provider;
       resolvedModelName = model;
-      return JSON.stringify({
-        relevance: { score: 9, confidence: 0.9, reason: 'Good relevance' },
-        faithfulness: { score: 9, confidence: 0.9, reason: 'Good faithfulness' },
-        creatorVoice: { score: 9, confidence: 0.9, reason: 'Good creatorVoice' },
-        platformSuitability: { score: 9, confidence: 0.9, reason: 'Good platformSuitability' },
-        engagement: { score: 9, confidence: 0.9, reason: 'Good engagement' },
-        readability: { score: 9, confidence: 0.9, reason: 'Good readability' },
-        actionability: { score: 9, confidence: 0.9, reason: 'Good actionability' },
-        overallScore: 90
-      });
+      return {
+        text: JSON.stringify({
+          relevance: { score: 9, confidence: 0.9, reason: 'Good relevance' },
+          faithfulness: { score: 9, confidence: 0.9, reason: 'Good faithfulness' },
+          creatorVoice: { score: 9, confidence: 0.9, reason: 'Good creatorVoice' },
+          platformSuitability: { score: 9, confidence: 0.9, reason: 'Good platformSuitability' },
+          engagement: { score: 9, confidence: 0.9, reason: 'Good engagement' },
+          readability: { score: 9, confidence: 0.9, reason: 'Good readability' },
+          actionability: { score: 9, confidence: 0.9, reason: 'Good actionability' },
+          overallScore: 90
+        }),
+        resolvedModel: model
+      };
     };
 
     try {
@@ -366,6 +369,109 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
     } finally {
       // Restore original function
       (LlmJudgeProvider.prototype as any).callLlmWithBackoff = originalCallLlm;
+    }
+  });
+
+  await t.test('10. LLM-Judge Production Resilience & Credential Failures', async () => {
+    const { evaluationService } = await import('../services');
+    const { LlmJudgeProvider } = await import('../providers');
+
+    const context: any = {
+      requestId: 'req-prod-resilience-1',
+      creatorId: 'user-1',
+      stage: EvaluationStage.GENERATION,
+      provider: 'Backend-API',
+      model: 'Backend-LLM',
+      metadata: {
+        inputPrompt: 'Write a blog post about Vercel',
+        generatedContent: 'Vercel is a cloud platform for static sites and Serverless Functions.',
+        tenantId: 'tenant-a',
+        workspaceId: 'ws-allowed'
+      }
+    };
+
+    // 10.1 Missing credentials throws AUTHENTICATION_ERROR
+    const originalApiKey = process.env.GEMINI_API_KEY;
+    const originalGoogleKey = process.env.GOOGLE_API_KEY;
+    const originalEvaluatorKey = process.env.EVALUATOR_API_KEY;
+
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.EVALUATOR_API_KEY;
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.FAILED);
+      assert.ok(res.errorMessage?.includes('[AUTHENTICATION_ERROR]'), `Expected AUTHENTICATION_ERROR prefix, got: ${res.errorMessage}`);
+    } finally {
+      if (originalApiKey) process.env.GEMINI_API_KEY = originalApiKey;
+      if (originalGoogleKey) process.env.GOOGLE_API_KEY = originalGoogleKey;
+      if (originalEvaluatorKey) process.env.EVALUATOR_API_KEY = originalEvaluatorKey;
+    }
+
+    // 10.2 Deprecated model fallback resolution (gemini-1.0-pro -> gemini-1.5-flash)
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    process.env.EVALUATOR_MODEL = 'gemini-1.0-pro';
+    process.env.EVALUATOR_FALLBACK_MODEL = 'gemini-1.5-flash';
+
+    let requestUrls: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: any, init: any) => {
+      requestUrls.push(url.toString());
+      // Return 200 OK mock response for the fallback model
+      return new Response(JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                relevance: { score: 9, confidence: 0.9, reason: 'Good' },
+                faithfulness: { score: 9, confidence: 0.9, reason: 'Good' },
+                creatorVoice: { score: 9, confidence: 0.9, reason: 'Good' },
+                platformSuitability: { score: 9, confidence: 0.9, reason: 'Good' },
+                engagement: { score: 9, confidence: 0.9, reason: 'Good' },
+                readability: { score: 9, confidence: 0.9, reason: 'Good' },
+                actionability: { score: 9, confidence: 0.9, reason: 'Good' },
+                overallScore: 90
+              })
+            }]
+          }
+        }]
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.COMPLETED);
+      assert.strictEqual(res.context.metadata?.judgeModel, 'gemini-1.5-flash');
+      assert.ok(requestUrls.some(u => u.includes('/models/gemini-1.5-flash')), `Expected request to use fallback gemini-1.5-flash, urls: ${requestUrls.join(', ')}`);
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.EVALUATOR_MODEL;
+      delete process.env.EVALUATOR_FALLBACK_MODEL;
+      delete process.env.GEMINI_API_KEY;
+    }
+
+    // 10.3 Gemini 503 retry and backoff handling with error categorization
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    let callCount = 0;
+    globalThis.fetch = async (url: any, init: any) => {
+      callCount++;
+      return new Response('Service Temporarily Unavailable', { status: 503 });
+    };
+
+    // We override setTimeout to avoid delays in tests
+    const originalSetTimeout = globalThis.setTimeout;
+    (globalThis as any).setTimeout = (fn: any, delay: any) => fn();
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.FAILED);
+      assert.strictEqual(callCount, 3); // 3 max attempts
+      assert.ok(res.errorMessage?.includes('[UPSTREAM_503]'), `Expected UPSTREAM_503 prefix, got: ${res.errorMessage}`);
+    } finally {
+      globalThis.fetch = originalFetch;
+      globalThis.setTimeout = originalSetTimeout;
+      delete process.env.GEMINI_API_KEY;
     }
   });
 });

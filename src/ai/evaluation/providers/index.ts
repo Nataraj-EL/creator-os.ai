@@ -25,13 +25,22 @@ export class LlmJudgeProvider implements EvaluationProvider {
   };
 
   private getApiKey(provider: string, model: string): string {
+    // Ensure we are strictly on the server side to protect secrets
+    if (typeof window !== 'undefined') {
+      return '';
+    }
+    
+    if (process.env.EVALUATOR_API_KEY) {
+      return process.env.EVALUATOR_API_KEY;
+    }
+
     const pLower = provider.toLowerCase();
     const mLower = model.toLowerCase();
     if (pLower.includes('gemini') || pLower.includes('google') || mLower.includes('gemini')) {
-      return process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+      return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
     }
     if (pLower.includes('groq') || mLower.includes('llama') || mLower.includes('mixtral')) {
-      return process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY || '';
+      return process.env.GROQ_API_KEY || '';
     }
     return '';
   }
@@ -41,16 +50,24 @@ export class LlmJudgeProvider implements EvaluationProvider {
     model: string,
     systemPrompt: string,
     userPrompt: string
-  ): Promise<string> {
-    const apiKey = this.getApiKey(provider, model);
-    if (!apiKey) {
-      throw new ProviderError(this.metadata.name, `Missing API key credentials for provider: ${provider} (model: ${model})`);
-    }
-
-    const pLower = provider.toLowerCase();
-    const mLower = model.toLowerCase();
+  ): Promise<{ text: string; resolvedModel: string }> {
     const maxAttempts = 3;
     let baseDelay = 500; // ms
+    let currentModel = model;
+
+    // Detect known deprecated Gemini models before sending upstream requests
+    const deprecatedGeminiModels = ['gemini-1.0-pro', 'gemini-1.0-pro-001', 'gemini-1.0-pro-vision', 'gemini-1.0-ultra'];
+    const pLower = provider.toLowerCase();
+    if (pLower.includes('gemini') && deprecatedGeminiModels.includes(currentModel.toLowerCase())) {
+      const fallback = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
+      console.warn(`Configured Gemini model ${currentModel} is deprecated. Falling back to ${fallback}`);
+      currentModel = fallback;
+    }
+
+    const apiKey = this.getApiKey(provider, currentModel);
+    if (!apiKey) {
+      throw new ProviderError(this.metadata.name, `[AUTHENTICATION_ERROR] Missing API key credentials for provider: ${provider} (model: ${currentModel})`);
+    }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const controller = new AbortController();
@@ -58,9 +75,10 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
       try {
         let response: Response;
+        const mLower = currentModel.toLowerCase();
         
         if (pLower.includes('gemini') || pLower.includes('google') || mLower.includes('gemini')) {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
           response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -85,7 +103,7 @@ export class LlmJudgeProvider implements EvaluationProvider {
               'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-              model,
+              model: currentModel,
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
@@ -95,23 +113,47 @@ export class LlmJudgeProvider implements EvaluationProvider {
             signal: controller.signal
           });
         } else {
-          throw new ProviderError(this.metadata.name, `Unsupported LLM judge provider: ${provider} (model: ${model})`);
+          throw new ProviderError(this.metadata.name, `[CONFIGURATION_ERROR] Unsupported LLM judge provider: ${provider} (model: ${currentModel})`);
         }
 
         clearTimeout(timeoutId);
 
         // Handle errors
         if (!response.ok) {
+          // Detect model not found/deprecated dynamic failures to switch to fallback
+          if (response.status === 404 || response.status === 400) {
+            const errText = await response.text().catch(() => '');
+            const errLower = errText.toLowerCase();
+            if (errLower.includes('not found') || errLower.includes('deprecated') || errLower.includes('not exist') || errLower.includes('invalid model')) {
+              const fallback = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
+              if (currentModel !== fallback) {
+                console.warn(`Upstream returned model error (${response.status}). Falling back to ${fallback}. Error: ${errText}`);
+                currentModel = fallback;
+                continue;
+              }
+            }
+          }
+
           const isTransient = response.status === 429 || response.status >= 500;
           if (isTransient && attempt < maxAttempts) {
             const delay = baseDelay * Math.pow(2, attempt - 1);
             await new Promise(r => setTimeout(r, delay));
             continue;
           }
+
           const errText = await response.text().catch(() => 'No error body');
+          let classification = 'EVALUATION_ERROR';
+          if (response.status === 401 || response.status === 403) {
+            classification = 'AUTHENTICATION_ERROR';
+          } else if (response.status === 429) {
+            classification = 'RATE_LIMIT';
+          } else if (response.status === 503) {
+            classification = 'UPSTREAM_503';
+          }
+          
           throw new ProviderError(
             this.metadata.name,
-            `Upstream provider call failed with status ${response.status}: ${errText}`
+            `[${classification}] Upstream provider call failed with status ${response.status}: ${errText}`
           );
         }
 
@@ -125,17 +167,17 @@ export class LlmJudgeProvider implements EvaluationProvider {
         }
 
         if (!textResult.trim()) {
-          throw new ValidationError('Empty response text returned from LLM judge.');
+          throw new ValidationError('[EVALUATION_ERROR] Empty response text returned from LLM judge.');
         }
 
-        return textResult.trim();
+        return { text: textResult.trim(), resolvedModel: currentModel };
 
       } catch (err: any) {
         clearTimeout(timeoutId);
         const isTimeout = err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('aborted');
         const displayErr = isTimeout 
-          ? new ProviderError(this.metadata.name, `Upstream call timed out after 5000ms.`)
-          : (err instanceof ProviderError ? err : new ProviderError(this.metadata.name, err.message));
+          ? new ProviderError(this.metadata.name, `[UPSTREAM_503] Upstream call timed out after 5000ms.`)
+          : (err instanceof ProviderError ? err : new ProviderError(this.metadata.name, `[EVALUATION_ERROR] ${err.message}`));
 
         if (attempt === maxAttempts) {
           throw displayErr;
@@ -145,26 +187,27 @@ export class LlmJudgeProvider implements EvaluationProvider {
       }
     }
 
-    throw new ProviderError(this.metadata.name, 'Execution failed after max retries.');
+    throw new ProviderError(this.metadata.name, '[UPSTREAM_503] Execution failed after max retries.');
   }
 
   public async execute(context: EvaluationContext, config?: EvaluationConfig): Promise<EvaluationResult> {
     const startTime = Date.now();
     
     // Resolve the LLM judge provider and model, separating judge configuration from generation context.
-    let providerName = config?.providerName || 'Gemini';
-    let model = (config as any)?.model || 'gemini-1.5-pro';
+    // Prioritize environment-driven overrides first.
+    let providerName = process.env.EVALUATOR_PROVIDER || config?.providerName || 'Gemini';
+    let model = process.env.EVALUATOR_MODEL || (config as any)?.model || 'gemini-1.5-pro';
 
-    // Fall back to context provider/model ONLY if they represent supported evaluator LLMs.
-    // If the generation provider is a non-evaluation API (like 'Backend-API'), we must use default judge values.
-    if (!config?.providerName && context.provider) {
+    // Fall back to context provider/model ONLY if they represent supported evaluator LLMs,
+    // and ONLY if the environment has not overridden the evaluator configuration.
+    if (!process.env.EVALUATOR_PROVIDER && !config?.providerName && context.provider) {
       const pLower = context.provider.toLowerCase();
       if (pLower.includes('gemini') || pLower.includes('google') || pLower.includes('groq') || pLower.includes('llama') || pLower.includes('mixtral')) {
         providerName = context.provider;
       }
     }
 
-    if (!(config as any)?.model && context.model) {
+    if (!process.env.EVALUATOR_MODEL && !(config as any)?.model && context.model) {
       const mLower = context.model.toLowerCase();
       if (mLower.includes('gemini') || mLower.includes('llama') || mLower.includes('mixtral')) {
         model = context.model;
@@ -177,13 +220,13 @@ export class LlmJudgeProvider implements EvaluationProvider {
     const brandVoice = context.metadata?.brandVoice || '';
 
     if (!generatedOutput) {
-      throw new ValidationError('Missing generatedContent/script in evaluation context metadata.');
+      throw new ValidationError('[EVALUATION_ERROR] Missing generatedContent/script in evaluation context metadata.');
     }
 
     const systemPrompt = generationJudgeSystemPrompt;
     const userPrompt = buildGenerationJudgeUserPrompt(inputPrompt, generatedOutput, brandVoice);
 
-    const rawJsonText = await this.callLlmWithBackoff(providerName, model, systemPrompt, userPrompt);
+    const { text: rawJsonText, resolvedModel } = await this.callLlmWithBackoff(providerName, model, systemPrompt, userPrompt);
     
     // Parse JSON with cleaning
     let parsed: any;
@@ -201,14 +244,14 @@ export class LlmJudgeProvider implements EvaluationProvider {
     try {
       parsed = JSON.parse(cleanedText);
     } catch (e: any) {
-      throw new ValidationError(`LLM Judge output did not return valid JSON: ${e.message}. Raw output: ${rawJsonText}`);
+      throw new ValidationError(`[EVALUATION_ERROR] LLM Judge output did not return valid JSON: ${e.message}. Raw output: ${rawJsonText}`);
     }
 
     // Verify metrics exist in JSON
     const requiredMetrics = ['relevance', 'faithfulness', 'creatorVoice', 'platformSuitability', 'engagement', 'readability', 'actionability'];
     for (const metricKey of requiredMetrics) {
       if (!parsed[metricKey] || typeof parsed[metricKey].score !== 'number' || isNaN(parsed[metricKey].score)) {
-        throw new ValidationError(`LLM Judge JSON response is missing or has invalid metric block for: ${metricKey}`);
+        throw new ValidationError(`[EVALUATION_ERROR] LLM Judge JSON response is missing or has invalid metric block for: ${metricKey}`);
       }
     }
 
@@ -260,7 +303,7 @@ export class LlmJudgeProvider implements EvaluationProvider {
         ...context,
         metadata: {
           ...context.metadata,
-          judgeModel: model,
+          judgeModel: resolvedModel,
           judgePromptVersion: PROMPT_VERSION,
           evaluationVersion: 'v1'
         }

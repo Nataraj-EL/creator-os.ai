@@ -1318,12 +1318,22 @@ export default function DeveloperEvaluationConsole() {
 
                 {/* ERROR PANEL IF APPLICABLE */}
                 {selectedRecord.status === EvaluationStatus.FAILED && (
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl space-y-1">
-                    <span className="text-xs font-bold text-red-400 flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>Execution Error Logged</span>
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl space-y-1.5">
+                    <span className="text-xs font-bold text-red-400 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>Execution Error Logged</span>
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/20 border border-red-500/30 text-red-300">
+                        {selectedRecord.errorMessage?.includes('[CONFIGURATION_ERROR]') ? 'CONFIGURATION_ERROR' :
+                         selectedRecord.errorMessage?.includes('[AUTHENTICATION_ERROR]') ? 'AUTHENTICATION_ERROR' :
+                         selectedRecord.errorMessage?.includes('[RATE_LIMIT]') ? 'RATE_LIMIT' :
+                         selectedRecord.errorMessage?.includes('[UPSTREAM_503]') ? 'UPSTREAM_503' : 'EVALUATION_ERROR'}
+                      </span>
                     </span>
-                    <p className="text-[10px] text-zinc-300 font-mono leading-relaxed break-words">{selectedRecord.errorMessage}</p>
+                    <p className="text-[10px] text-zinc-300 font-mono leading-relaxed break-words">
+                      {selectedRecord.errorMessage?.replace(/^\[[A-Z0-9_]+\]\s*/, '')}
+                    </p>
                   </div>
                 )}
 

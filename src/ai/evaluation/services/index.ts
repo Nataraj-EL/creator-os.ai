@@ -177,6 +177,23 @@ export class DefaultEvaluationService implements IEvaluationService {
       const latencyMs = Date.now() - startTime;
       this.logger.logFailed(context, err, latencyMs);
 
+      // Classify the error type to ensure clarity in the developer logs
+      let classifiedMessage = err.message || 'Unknown evaluation execution failure.';
+      if (!classifiedMessage.startsWith('[')) {
+        const msgLower = classifiedMessage.toLowerCase();
+        if (msgLower.includes('credentials') || msgLower.includes('api key missing') || msgLower.includes('key missing') || msgLower.includes('unauthorized') || msgLower.includes('status 401') || msgLower.includes('status 403')) {
+          classifiedMessage = `[AUTHENTICATION_ERROR] ${classifiedMessage}`;
+        } else if (msgLower.includes('rate limit') || msgLower.includes('status 429') || msgLower.includes('too many requests')) {
+          classifiedMessage = `[RATE_LIMIT] ${classifiedMessage}`;
+        } else if (msgLower.includes('503') || msgLower.includes('service unavailable') || msgLower.includes('status 503') || msgLower.includes('timeout') || msgLower.includes('timed out')) {
+          classifiedMessage = `[UPSTREAM_503] ${classifiedMessage}`;
+        } else if (msgLower.includes('configuration') || msgLower.includes('not support') || msgLower.includes('not registered') || msgLower.includes('unsupported llm judge')) {
+          classifiedMessage = `[CONFIGURATION_ERROR] ${classifiedMessage}`;
+        } else {
+          classifiedMessage = `[EVALUATION_ERROR] ${classifiedMessage}`;
+        }
+      }
+
       const failedResult: EvaluationResult = {
         evaluationId: `eval-failed-${Math.random().toString(36).substring(2, 9)}`,
         context,
@@ -184,7 +201,7 @@ export class DefaultEvaluationService implements IEvaluationService {
         metrics: [],
         overallScore: 0,
         latencyMs,
-        errorMessage: err.message || 'Unknown evaluation execution failure.',
+        errorMessage: classifiedMessage,
         createdAt: new Date().toISOString()
       };
 
@@ -198,7 +215,7 @@ export class DefaultEvaluationService implements IEvaluationService {
         stage: 'evaluation',
         component: 'EvaluationService',
         status: 'failed',
-        metadata: { error: err.message || 'Evaluation execution failure.' }
+        metadata: { error: classifiedMessage }
       });
 
       return failedResult;

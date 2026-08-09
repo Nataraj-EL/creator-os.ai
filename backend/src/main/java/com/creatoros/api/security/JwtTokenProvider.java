@@ -35,6 +35,9 @@ public class JwtTokenProvider {
         claims.put("id", user.getId().toString());
         claims.put("role", user.getRole().name());
         claims.put("email", user.getEmail());
+        if (user.getActiveWorkspace() != null) {
+            claims.put("activeWorkspaceId", user.getActiveWorkspace().getId().toString());
+        }
         
         Instant now = Instant.now();
         Instant expiryDate = now.plusMillis(jwtExpirationInMs);

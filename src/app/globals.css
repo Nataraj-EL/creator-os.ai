@@ -89,7 +89,7 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 
   /* Apply the subtle background box/grid design globally across the entire website */

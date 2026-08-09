@@ -352,6 +352,62 @@ test('Production E2E Validation & Integration Boundary Suite', async (t) => {
     }
   });
 
+  await t.test('5. Valid production-style request with activeWorkspaceId, no tenantId, missing workspaces list', async () => {
+    const originalProviders = providerFeatureFlags.PROVIDERS_ENABLED;
+    providerFeatureFlags.PROVIDERS_ENABLED = true;
+
+    // A token modeled exactly like a production JWT token payload (has user id, role, activeWorkspaceId, but NO tenantId/tenant, and NO workspaces list)
+    const createProdToken = (userId: string, activeWorkspaceId: string): string => {
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+      const payload = Buffer.from(JSON.stringify({
+        id: userId,
+        role: 'CREATOR',
+        email: 'creator@production.com',
+        activeWorkspaceId,
+        exp: Math.floor(Date.now() / 1000) + 3600
+      })).toString('base64');
+      return `${header}.${payload}.signature`;
+    };
+
+    const token = createProdToken('prod-user-123', 'ws-prod-456');
+
+    // Case A: Valid authorized request (workspace matches activeWorkspaceId)
+    const reqValid = new Request('http://localhost/api/content/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        title: 'Production generation title',
+        topic: 'Verification topic details',
+        primaryGoal: 'Reach',
+        workspaceId: 'ws-prod-456',
+        stream: false
+      })
+    });
+    const resValid = await postGenerate(reqValid);
+    assert.strictEqual(resValid.status, 200);
+
+    // Case B: Unauthorized workspace (request workspace does not match activeWorkspaceId, and workspaces list is empty/missing)
+    const reqInvalid = new Request('http://localhost/api/content/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        title: 'Production generation title',
+        topic: 'Verification topic details',
+        primaryGoal: 'Reach',
+        workspaceId: 'ws-prod-unauthorized',
+        stream: false
+      })
+    });
+    const resInvalid = await postGenerate(reqInvalid);
+    assert.strictEqual(resInvalid.status, 403); // Forbidden
+
+    providerFeatureFlags.PROVIDERS_ENABLED = originalProviders;
+  });
+
   // Restore global mocks
   (evaluationService as any).registry.get = originalEvalGet;
   providerResolver.resolve = originalProviderResolve;

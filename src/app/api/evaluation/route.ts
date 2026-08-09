@@ -22,7 +22,7 @@ function sanitizeEvaluation(run: EvaluationResult) {
 
   return {
     evaluationId: run.evaluationId,
-    decision: run.decision || 'PASS',
+    decision: run.status === 'FAILED' ? undefined : (run.decision || 'PASS'),
     overallScore: run.overallScore,
     provider: context.provider || 'Unknown',
     model: context.model || 'Unknown',

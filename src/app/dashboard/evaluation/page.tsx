@@ -640,6 +640,7 @@ export default function DeveloperEvaluationConsole() {
 
   // Model comparison
   const modelStats = activeSourceRecords.reduce((acc: any, r) => {
+    if (r.status !== EvaluationStatus.COMPLETED) return acc;
     const key = `${r.context?.provider || 'Unknown'} - ${r.context?.model || 'Unknown'}`;
     if (!acc[key]) {
       acc[key] = { key, count: 0, scoreSum: 0, latencySum: 0 };

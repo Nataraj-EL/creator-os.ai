@@ -150,8 +150,26 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
   public async execute(context: EvaluationContext, config?: EvaluationConfig): Promise<EvaluationResult> {
     const startTime = Date.now();
-    const providerName = config?.providerName || context.provider || 'Gemini';
-    const model = context.model || 'gemini-1.5-pro';
+    
+    // Resolve the LLM judge provider and model, separating judge configuration from generation context.
+    let providerName = config?.providerName || 'Gemini';
+    let model = (config as any)?.model || 'gemini-1.5-pro';
+
+    // Fall back to context provider/model ONLY if they represent supported evaluator LLMs.
+    // If the generation provider is a non-evaluation API (like 'Backend-API'), we must use default judge values.
+    if (!config?.providerName && context.provider) {
+      const pLower = context.provider.toLowerCase();
+      if (pLower.includes('gemini') || pLower.includes('google') || pLower.includes('groq') || pLower.includes('llama') || pLower.includes('mixtral')) {
+        providerName = context.provider;
+      }
+    }
+
+    if (!(config as any)?.model && context.model) {
+      const mLower = context.model.toLowerCase();
+      if (mLower.includes('gemini') || mLower.includes('llama') || mLower.includes('mixtral')) {
+        model = context.model;
+      }
+    }
 
     // Verify context inputs
     const inputPrompt = context.metadata?.inputPrompt || context.metadata?.topic || '';

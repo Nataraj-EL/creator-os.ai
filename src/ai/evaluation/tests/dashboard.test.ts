@@ -272,4 +272,100 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
     assert.ok(found);
     assert.strictEqual(found.context?.requestId, 'N/A'); // normalized safely
   });
+
+  await t.test('9. Evaluation Console Flow, Registry Decoupling, Failed Decisions Aggregation', async () => {
+    // 9.1 Backend-API generation + default LLM-Judge evaluation provider resolution
+    const { evaluationService } = await import('../services');
+    const { LlmJudgeProvider } = await import('../providers');
+    
+    const context: any = {
+      requestId: 'req-backend-api-test-111',
+      creatorId: 'user-1',
+      stage: EvaluationStage.GENERATION,
+      provider: 'Backend-API',
+      model: 'Backend-LLM',
+      metadata: {
+        inputPrompt: 'Tell me about anti-gravity',
+        generatedContent: 'Antigravity is a concept of creating a place or object that is free from the force of gravity.',
+        tenantId: 'tenant-a',
+        workspaceId: 'ws-allowed'
+      }
+    };
+
+    // We stub callLlmWithBackoff to return mock JSON instead of calling Google/Groq APIs directly
+    const originalCallLlm = (LlmJudgeProvider.prototype as any).callLlmWithBackoff;
+    let resolvedProviderName = '';
+    let resolvedModelName = '';
+    
+    (LlmJudgeProvider.prototype as any).callLlmWithBackoff = async function(provider: string, model: string) {
+      resolvedProviderName = provider;
+      resolvedModelName = model;
+      return JSON.stringify({
+        relevance: { score: 9, confidence: 0.9, reason: 'Good relevance' },
+        faithfulness: { score: 9, confidence: 0.9, reason: 'Good faithfulness' },
+        creatorVoice: { score: 9, confidence: 0.9, reason: 'Good creatorVoice' },
+        platformSuitability: { score: 9, confidence: 0.9, reason: 'Good platformSuitability' },
+        engagement: { score: 9, confidence: 0.9, reason: 'Good engagement' },
+        readability: { score: 9, confidence: 0.9, reason: 'Good readability' },
+        actionability: { score: 9, confidence: 0.9, reason: 'Good actionability' },
+        overallScore: 90
+      });
+    };
+
+    try {
+      const result = await evaluationService.evaluate(context);
+      
+      // Verification: Registry fallback successfully resolved LLM-Judge, which decoupled Backend-API to Gemini/gemini-1.5-pro
+      assert.strictEqual(result.status, EvaluationStatus.COMPLETED);
+      assert.strictEqual(resolvedProviderName, 'Gemini');
+      assert.strictEqual(resolvedModelName, 'gemini-1.5-pro');
+      assert.strictEqual(result.overallScore, 90);
+      assert.strictEqual(result.decision, 'PASS');
+      assert.strictEqual(result.context.provider, 'Backend-API');
+      assert.strictEqual(result.context.model, 'Backend-LLM');
+      
+      // 9.2 Evaluation provider failure representation (status FAILED, decision is undefined, overallScore is 0)
+      (LlmJudgeProvider.prototype as any).callLlmWithBackoff = async function() {
+        throw new Error('API key missing or rate limit exceeded');
+      };
+      
+      const failedResult = await evaluationService.evaluate(context);
+      assert.strictEqual(failedResult.status, EvaluationStatus.FAILED);
+      assert.strictEqual(failedResult.overallScore, 0);
+      assert.strictEqual(failedResult.decision, undefined);
+      assert.ok(failedResult.errorMessage?.includes('API key missing'));
+      
+      // 9.3 Aggregation & API mapping verification (Failed decision does not map to PASS, is excluded from decision metrics)
+      const memoryRepo = new InMemoryEvaluationRepository();
+      EvaluationRepositoryFactory.registerRepository(memoryRepo);
+      
+      // Save 1 passed evaluation and 1 failed evaluation
+      await memoryRepo.save(result);
+      await memoryRepo.save(failedResult);
+      
+      const token = createMockToken('user-1', 'ws-allowed', { workspaces: ['ws-allowed'] });
+      const response = await getEvaluations(new Request('http://localhost/api/evaluation?workspaceId=ws-allowed', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }));
+      
+      assert.strictEqual(response.status, 200);
+      const list = await response.json();
+      
+      const cleanPassed = list.find((item: any) => item.evaluationId === result.evaluationId);
+      const cleanFailed = list.find((item: any) => item.evaluationId === failedResult.evaluationId);
+      
+      assert.ok(cleanPassed);
+      assert.strictEqual(cleanPassed.decision, 'PASS');
+      assert.strictEqual(cleanPassed.status, EvaluationStatus.COMPLETED);
+      
+      assert.ok(cleanFailed);
+      assert.strictEqual(cleanFailed.decision, undefined); // Failed runs should carry undefined/null decision, not pass
+      assert.strictEqual(cleanFailed.status, EvaluationStatus.FAILED);
+      
+    } finally {
+      // Restore original function
+      (LlmJudgeProvider.prototype as any).callLlmWithBackoff = originalCallLlm;
+    }
+  });
 });

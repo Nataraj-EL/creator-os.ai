@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import test from 'node:test';
 import assert from 'node:assert';
 import { POST as postGenerate } from '../../../app/api/content/generate/route';

@@ -462,7 +462,7 @@ export default function DeveloperEvaluationConsole() {
     }
 
     const fetchTrace = async () => {
-      const sessionId = selectedRecord.context.sessionId;
+      const sessionId = selectedRecord.context?.sessionId;
       let trace = null;
       if (sessionId) {
         trace = await traceRuntime.getTrace(sessionId);
@@ -478,7 +478,7 @@ export default function DeveloperEvaluationConsole() {
         
         const generatedMockTrace = {
           traceId,
-          requestId: selectedRecord.context.requestId,
+          requestId: selectedRecord.context?.requestId || 'N/A',
           startTime: selectedRecord.createdAt,
           endTime: new Date(start + duration).toISOString(),
           durationMs: duration,
@@ -487,17 +487,17 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-mw-1',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start).toISOString(),
               stage: 'middleware',
               component: 'TraceMiddleware',
               status: 'started',
-              metadata: { model: selectedRecord.context.model, provider: selectedRecord.context.provider }
+              metadata: { model: selectedRecord.context?.model || 'Unknown', provider: selectedRecord.context?.provider || 'Unknown' }
             },
             {
               eventId: 'evt-ctx-1',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.05)).toISOString(),
               stage: 'context',
               component: 'ContextAssemblyRuntime',
@@ -507,7 +507,7 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-ret-1',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.08)).toISOString(),
               stage: 'retrieval',
               component: 'RetrievalService',
@@ -517,7 +517,7 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-ret-2',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.18)).toISOString(),
               stage: 'retrieval',
               component: 'RetrievalService',
@@ -528,7 +528,7 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-ctx-2',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.22)).toISOString(),
               stage: 'context',
               component: 'ContextAssemblyRuntime',
@@ -539,7 +539,7 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-pb-1',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.25)).toISOString(),
               stage: 'prompt-builder',
               component: 'PromptBuilder',
@@ -549,17 +549,17 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-eval-1',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.28)).toISOString(),
               stage: 'evaluation',
               component: 'EvaluationService',
               status: 'started',
-              metadata: { stage: selectedRecord.context.stage }
+              metadata: { stage: selectedRecord.context?.stage || 'N/A' }
             },
             {
               eventId: 'evt-eval-2',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + Math.round(duration * 0.95)).toISOString(),
               stage: 'evaluation',
               component: 'EvaluationService',
@@ -570,7 +570,7 @@ export default function DeveloperEvaluationConsole() {
             {
               eventId: 'evt-mw-2',
               traceId,
-              requestId: selectedRecord.context.requestId,
+              requestId: selectedRecord.context?.requestId || 'N/A',
               timestamp: new Date(start + duration).toISOString(),
               stage: 'middleware',
               component: 'TraceMiddleware',
@@ -596,11 +596,11 @@ export default function DeveloperEvaluationConsole() {
 
     const matchesSearch = 
       r.evaluationId.toLowerCase().includes(search.toLowerCase()) ||
-      r.context.requestId.toLowerCase().includes(search.toLowerCase()) ||
-      (r.context.sessionId && r.context.sessionId.toLowerCase().includes(search.toLowerCase()));
+      (r.context?.requestId || 'N/A').toLowerCase().includes(search.toLowerCase()) ||
+      (r.context?.sessionId && r.context.sessionId.toLowerCase().includes(search.toLowerCase()));
 
-    const matchesStage = filterStage === 'all' || r.context.stage === filterStage;
-    const matchesProvider = filterProvider === 'all' || r.context.provider === filterProvider;
+    const matchesStage = filterStage === 'all' || r.context?.stage === filterStage;
+    const matchesProvider = filterProvider === 'all' || r.context?.provider === filterProvider;
     const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
 
     return matchesSearch && matchesStage && matchesProvider && matchesStatus;
@@ -635,12 +635,12 @@ export default function DeveloperEvaluationConsole() {
   const failCount = activeSourceRecords.filter(r => r.decision === 'FAIL').length;
 
   // Usage & Cost
-  const totalTokens = activeSourceRecords.reduce((sum, r) => sum + (r.context.metadata?.tokenUsage?.total || 0), 0);
-  const totalCost = activeSourceRecords.reduce((sum, r) => sum + (r.context.metadata?.estimatedCost || 0.0), 0);
+  const totalTokens = activeSourceRecords.reduce((sum, r) => sum + (r.context?.metadata?.tokenUsage?.total || 0), 0);
+  const totalCost = activeSourceRecords.reduce((sum, r) => sum + (r.context?.metadata?.estimatedCost || 0.0), 0);
 
   // Model comparison
   const modelStats = activeSourceRecords.reduce((acc: any, r) => {
-    const key = `${r.context.provider || 'Unknown'} - ${r.context.model || 'Unknown'}`;
+    const key = `${r.context?.provider || 'Unknown'} - ${r.context?.model || 'Unknown'}`;
     if (!acc[key]) {
       acc[key] = { key, count: 0, scoreSum: 0, latencySum: 0 };
     }
@@ -1101,20 +1101,20 @@ export default function DeveloperEvaluationConsole() {
                             {r.evaluationId}
                           </td>
                           {/* Request ID */}
-                          <td className="p-4 text-xs font-mono text-cyan-400 whitespace-nowrap">
-                            {r.context.requestId}
+                           <td className="p-4 text-xs font-mono text-cyan-400 whitespace-nowrap">
+                            {r.context?.requestId || 'N/A'}
                           </td>
                           {/* Stage */}
                           <td className="p-4 whitespace-nowrap">
                             <span className="px-2 py-0.5 rounded-md bg-white/[0.04] text-zinc-300 text-[10px] font-semibold uppercase tracking-wider border border-white/[0.06]">
-                              {r.context.stage}
+                              {r.context?.stage || 'N/A'}
                             </span>
                           </td>
                           {/* Provider */}
                           <td className="p-4 whitespace-nowrap">
                             <div className="flex flex-col">
-                              <span className="text-xs text-white font-semibold">{r.context.provider}</span>
-                              <span className="text-[10px] text-zinc-500 font-medium">{r.context.model}</span>
+                              <span className="text-xs text-white font-semibold">{r.context?.provider || 'Unknown'}</span>
+                              <span className="text-[10px] text-zinc-500 font-medium">{r.context?.model || 'Unknown'}</span>
                             </div>
                           </td>
                           {/* Latency */}
@@ -1199,12 +1199,12 @@ export default function DeveloperEvaluationConsole() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500 font-semibold">REQUEST ID:</span>
-                  <span className="text-cyan-400 font-bold">{selectedRecord.context.requestId}</span>
+                  <span className="text-cyan-400 font-bold">{selectedRecord.context?.requestId || 'N/A'}</span>
                 </div>
-                {selectedRecord.context.sessionId && (
+                {selectedRecord.context?.sessionId && (
                   <div className="flex justify-between">
                     <span className="text-zinc-500 font-semibold">TRACE ID (SESSION):</span>
-                    <span className="text-zinc-300 font-bold">{selectedRecord.context.sessionId}</span>
+                    <span className="text-zinc-300 font-bold">{selectedRecord.context?.sessionId}</span>
                   </div>
                 )}
               </div>
@@ -1236,7 +1236,7 @@ export default function DeveloperEvaluationConsole() {
                         <CheckCircle2 className="h-3 w-3" />
                       </div>
                       <span className="font-semibold text-white">Provider Selected</span>
-                      <p className="text-[10px] text-zinc-500">Resolved to {selectedRecord.context.provider}.</p>
+                      <p className="text-[10px] text-zinc-500">Resolved to {selectedRecord.context?.provider || 'Unknown'}.</p>
                     </div>
 
                     {/* Request Sent */}
@@ -1252,7 +1252,7 @@ export default function DeveloperEvaluationConsole() {
                         Request Dispatched
                       </span>
                       <p className="text-[10px] text-zinc-500">
-                        {selectedRecord.status === EvaluationStatus.SKIPPED ? 'Skipped pipeline processing.' : `Endpoint target model: ${selectedRecord.context.model}.`}
+                        {selectedRecord.status === EvaluationStatus.SKIPPED ? 'Skipped pipeline processing.' : `Endpoint target model: ${selectedRecord.context?.model || 'Unknown'}.`}
                       </p>
                     </div>
 
@@ -1349,12 +1349,12 @@ export default function DeveloperEvaluationConsole() {
                             <div className="grid grid-cols-2 gap-4 text-xs">
                               <div>
                                 <span className="text-zinc-500">Dataset Version</span>
-                                <p className="text-white font-bold">{selectedRecord.context.metadata?.datasetVersion || '1.0.0'}</p>
+                                <p className="text-white font-bold">{selectedRecord.context?.metadata?.datasetVersion || '1.0.0'}</p>
                               </div>
                               <div>
                                 <span className="text-zinc-500">Pass Rate</span>
                                 <p className="text-emerald-400 font-bold">
-                                  {selectedRecord.context.metadata?.passCount} / {selectedRecord.context.metadata?.totalCount} ({selectedRecord.overallScore}% pass)
+                                  {selectedRecord.context?.metadata?.passCount || 0} / {selectedRecord.context?.metadata?.totalCount || 0} ({selectedRecord.overallScore}% pass)
                                 </p>
                               </div>
                               <div>
@@ -1363,7 +1363,7 @@ export default function DeveloperEvaluationConsole() {
                               </div>
                               <div>
                                 <span className="text-zinc-500">Estimated Cost</span>
-                                <p className="text-cyan-400 font-bold">${selectedRecord.context.metadata?.estimatedCost?.toFixed(4)}</p>
+                                <p className="text-cyan-400 font-bold">${selectedRecord.context?.metadata?.estimatedCost?.toFixed(4) || '0.0000'}</p>
                               </div>
                             </div>
                           </div>
@@ -1371,7 +1371,7 @@ export default function DeveloperEvaluationConsole() {
                           <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl space-y-2">
                             <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Failed Regression Cases</span>
                             <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1.5">
-                              {selectedRecord.context.metadata?.failedCases && selectedRecord.context.metadata.failedCases.length > 0 ? (
+                              {selectedRecord.context?.metadata?.failedCases && selectedRecord.context.metadata.failedCases.length > 0 ? (
                                 selectedRecord.context.metadata.failedCases.map((c: string, idx: number) => (
                                   <div key={idx} className="p-2.5 bg-red-500/5 border border-red-500/10 rounded-lg text-xs flex gap-2 items-start text-red-300">
                                     <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -1561,15 +1561,15 @@ export default function DeveloperEvaluationConsole() {
                   <div className="grid grid-cols-2 gap-3 text-[10px] font-mono bg-white/[0.01] border border-white/5 rounded-xl p-3.5">
                     <div>
                       <span className="text-zinc-500 block">JUDGE MODEL</span>
-                      <span className="text-zinc-300 font-semibold">{selectedRecord.context.metadata?.judgeModel || 'gemini-1.5-pro'}</span>
+                      <span className="text-zinc-300 font-semibold">{selectedRecord.context?.metadata?.judgeModel || 'gemini-1.5-pro'}</span>
                     </div>
                     <div>
                       <span className="text-zinc-500 block">PROMPT VERSION</span>
-                      <span className="text-zinc-300 font-semibold">v{selectedRecord.context.metadata?.judgePromptVersion || '1.0.0'}</span>
+                      <span className="text-zinc-300 font-semibold">v{selectedRecord.context?.metadata?.judgePromptVersion || '1.0.0'}</span>
                     </div>
                     <div className="mt-2">
                       <span className="text-zinc-500 block">EVAL VERSION</span>
-                      <span className="text-zinc-300 font-semibold">{selectedRecord.context.metadata?.evaluationVersion || 'v1'}</span>
+                      <span className="text-zinc-300 font-semibold">{selectedRecord.context?.metadata?.evaluationVersion || 'v1'}</span>
                     </div>
                     <div className="mt-2">
                       <span className="text-zinc-500 block">TIMESTAMP</span>

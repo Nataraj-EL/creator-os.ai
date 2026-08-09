@@ -5,25 +5,50 @@ import { EvaluationResult } from '../../../ai/evaluation/types';
 function sanitizeEvaluation(run: EvaluationResult) {
   // Map raw evaluation database rows into the clean dashboard contract
   // Never expose raw generated content, user prompts, api keys, or tenant context.
+  const context = run.context || {};
+  const metadata = context.metadata || {};
+
+  const cleanMetadata = {
+    estimatedCost: metadata.estimatedCost,
+    tokenUsage: metadata.tokenUsage,
+    datasetVersion: metadata.datasetVersion,
+    passCount: metadata.passCount,
+    totalCount: metadata.totalCount,
+    failedCases: metadata.failedCases,
+    judgeModel: metadata.judgeModel,
+    judgePromptVersion: metadata.judgePromptVersion,
+    evaluationVersion: metadata.evaluationVersion
+  };
+
   return {
     evaluationId: run.evaluationId,
     decision: run.decision || 'PASS',
     overallScore: run.overallScore,
-    provider: run.context.provider || 'Unknown',
-    model: run.context.model || 'Unknown',
+    provider: context.provider || 'Unknown',
+    model: context.model || 'Unknown',
     latencyMs: run.latencyMs || 0,
     createdAt: run.createdAt,
     status: run.status,
-    tokenUsage: run.context.metadata?.tokenUsage || { prompt: 0, completion: 0, total: 0 },
-    estimatedCost: run.context.metadata?.estimatedCost || 0.0,
+    tokenUsage: metadata.tokenUsage || { prompt: 0, completion: 0, total: 0 },
+    estimatedCost: metadata.estimatedCost || 0.0,
     source: run.evaluationId.startsWith('eval-pf-') ? 'promptfoo' : 'runtime',
     metrics: (run.metrics || []).map(m => ({
       metricId: m.metricId,
       name: m.name,
       score: m.score,
       status: m.status,
-      reason: m.reason
-    }))
+      reason: m.reason,
+      confidence: m.confidence ?? 1.0
+    })),
+    context: {
+      requestId: context.requestId || 'N/A',
+      creatorId: context.creatorId || 'N/A',
+      stage: context.stage || 'N/A',
+      provider: context.provider || 'Unknown',
+      model: context.model || 'Unknown',
+      sessionId: context.sessionId || 'N/A',
+      metadata: cleanMetadata
+    }
   };
 }
 

@@ -7,6 +7,7 @@ const generationRequestSchema = z.object({
   topic: z.string().min(1).max(5000),
   primaryGoal: z.enum(['Reach', 'Engagement', 'Conversion']).default('Reach'),
   workspaceId: z.string().min(1).max(100).optional(),
+  creatorId: z.string().min(1).max(100).optional(),
   stream: z.boolean().optional()
 }).strict();
 
@@ -40,8 +41,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized: Missing user identity in token." }, { status: 401 });
     }
 
-    const tenantId = payload.tenantId || payload.tenant || (process.env.NODE_ENV === 'test' ? undefined : 'default');
-    if (!tenantId || tenantId === 'default' && process.env.NODE_ENV === 'test') {
+    const tenantId = payload.tenantId || payload.tenant;
+    if (!tenantId || tenantId === 'default') {
       return NextResponse.json({ error: "Unauthorized: Missing or unauthorized tenant context." }, { status: 401 });
     }
 
@@ -118,6 +119,25 @@ export async function POST(request: Request) {
                 streamController.enqueue(new TextEncoder().encode(payload));
               }
             );
+
+            // Asynchronously trigger Promptfoo demo evaluation on success
+            if (process.env.PROMPTFOO_RUNTIME_DEMO === 'true') {
+              import('../../../../ai/evaluation/promptfoo/runner')
+                .then(({ runRegression }) => {
+                  runRegression({
+                    providerName: 'mock',
+                    modelName: 'mock-model',
+                    mockMode: true,
+                    tenantId,
+                    workspaceId
+                  }).catch(err => {
+                    console.error('[Promptfoo-Demo] Async runner failed:', err.message);
+                  });
+                })
+                .catch(err => {
+                  console.error('[Promptfoo-Demo] Failed to dynamically load runner:', err.message);
+                });
+            }
           } catch (err: any) {
             // Error events are emitted via generateContentStream, clean closure ensures safety
           } finally {
@@ -165,6 +185,25 @@ export async function POST(request: Request) {
     );
 
     const result = await Promise.race([generationPromise, timeoutPromise]);
+
+    // Asynchronously trigger Promptfoo demo evaluation on success
+    if (process.env.PROMPTFOO_RUNTIME_DEMO === 'true') {
+      import('../../../../ai/evaluation/promptfoo/runner')
+        .then(({ runRegression }) => {
+          runRegression({
+            providerName: 'mock',
+            modelName: 'mock-model',
+            mockMode: true,
+            tenantId,
+            workspaceId
+          }).catch(err => {
+            console.error('[Promptfoo-Demo] Async runner failed:', err.message);
+          });
+        })
+        .catch(err => {
+          console.error('[Promptfoo-Demo] Failed to dynamically load runner:', err.message);
+        });
+    }
 
     return NextResponse.json(result.data);
   } catch (err: any) {

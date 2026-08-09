@@ -38,6 +38,7 @@ public class JwtTokenProvider {
         if (user.getActiveWorkspace() != null) {
             claims.put("activeWorkspaceId", user.getActiveWorkspace().getId().toString());
         }
+        claims.put("tenantId", deriveTenantId(user));
         
         Instant now = Instant.now();
         Instant expiryDate = now.plusMillis(jwtExpirationInMs);
@@ -49,6 +50,17 @@ public class JwtTokenProvider {
                 .expiration(Date.from(expiryDate))
                 .signWith(key)
                 .compact();
+    }
+
+    private String deriveTenantId(User user) {
+        String email = user.getEmail();
+        if (email != null && email.contains("@")) {
+            String domain = email.substring(email.indexOf("@") + 1).toLowerCase().trim();
+            if (!domain.equals("gmail.com") && !domain.equals("yahoo.com") && !domain.equals("outlook.com") && !domain.equals("hotmail.com")) {
+                return domain;
+            }
+        }
+        return "tenant-" + user.getId().toString();
     }
 
     public String generateRefreshToken() {

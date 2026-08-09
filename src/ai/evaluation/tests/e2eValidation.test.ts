@@ -352,11 +352,11 @@ test('Production E2E Validation & Integration Boundary Suite', async (t) => {
     }
   });
 
-  await t.test('5. Valid production-style request with activeWorkspaceId, no tenantId, missing workspaces list', async () => {
+  await t.test('5. Valid production-style request with activeWorkspaceId, derived tenantId, missing workspaces list', async () => {
     const originalProviders = providerFeatureFlags.PROVIDERS_ENABLED;
     providerFeatureFlags.PROVIDERS_ENABLED = true;
 
-    // A token modeled exactly like a production JWT token payload (has user id, role, activeWorkspaceId, but NO tenantId/tenant, and NO workspaces list)
+    // A token modeled exactly like a production JWT token payload (has user id, role, activeWorkspaceId, derived tenantId, and NO workspaces list)
     const createProdToken = (userId: string, activeWorkspaceId: string): string => {
       const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
       const payload = Buffer.from(JSON.stringify({
@@ -364,6 +364,7 @@ test('Production E2E Validation & Integration Boundary Suite', async (t) => {
         role: 'CREATOR',
         email: 'creator@production.com',
         activeWorkspaceId,
+        tenantId: 'production.com',
         exp: Math.floor(Date.now() / 1000) + 3600
       })).toString('base64');
       return `${header}.${payload}.signature`;

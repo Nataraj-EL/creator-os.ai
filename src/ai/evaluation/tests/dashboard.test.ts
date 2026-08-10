@@ -473,5 +473,50 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
       globalThis.setTimeout = originalSetTimeout;
       delete process.env.GEMINI_API_KEY;
     }
+
+    // 10.4 Upstream model 404/400 fallback resolution
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    process.env.EVALUATOR_MODEL = 'gemini-1.5-pro';
+    process.env.EVALUATOR_FALLBACK_MODEL = 'gemini-1.5-flash';
+
+    let fallbackUrls: string[] = [];
+    globalThis.fetch = async (url: any, init: any) => {
+      const urlStr = url.toString();
+      fallbackUrls.push(urlStr);
+      if (urlStr.includes('/models/gemini-1.5-pro')) {
+        return new Response('', { status: 404 }); // Return empty 404 to test fallback
+      }
+      return new Response(JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                relevance: { score: 8, confidence: 0.8, reason: 'Good' },
+                faithfulness: { score: 8, confidence: 0.8, reason: 'Good' },
+                creatorVoice: { score: 8, confidence: 0.8, reason: 'Good' },
+                platformSuitability: { score: 8, confidence: 0.8, reason: 'Good' },
+                engagement: { score: 8, confidence: 0.8, reason: 'Good' },
+                readability: { score: 8, confidence: 0.8, reason: 'Good' },
+                actionability: { score: 8, confidence: 0.8, reason: 'Good' },
+                overallScore: 80
+              })
+            }]
+          }
+        }]
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.COMPLETED);
+      assert.strictEqual(res.context.metadata?.judgeModel, 'gemini-1.5-flash');
+      assert.ok(fallbackUrls.some(u => u.includes('/models/gemini-1.5-pro')), 'Expected initial request to try gemini-1.5-pro');
+      assert.ok(fallbackUrls.some(u => u.includes('/models/gemini-1.5-flash')), 'Expected fallback request to try gemini-1.5-flash');
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.EVALUATOR_MODEL;
+      delete process.env.EVALUATOR_FALLBACK_MODEL;
+      delete process.env.GEMINI_API_KEY;
+    }
   });
 });

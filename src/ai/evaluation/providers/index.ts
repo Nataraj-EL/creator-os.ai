@@ -225,14 +225,24 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
         // Handle errors
         if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          const errLower = errText.toLowerCase();
+
           // Detect model not found/deprecated dynamic failures to switch to fallback
           if (response.status === 404 || response.status === 400) {
-            const errText = await response.text().catch(() => '');
-            const errLower = errText.toLowerCase();
-            if (errLower.includes('not found') || errLower.includes('deprecated') || errLower.includes('not exist') || errLower.includes('invalid model')) {
+            const isModelError = 
+              response.status === 404 || // Always fallback on 404
+              errLower.includes('not found') || 
+              errLower.includes('deprecated') || 
+              errLower.includes('not exist') || 
+              errLower.includes('invalid model') ||
+              errLower.includes('model_not_found') ||
+              !errLower.trim(); // Fallback if there is no error body
+              
+            if (isModelError) {
               const fallback = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
               if (currentModel !== fallback) {
-                console.warn(`Upstream returned model error (${response.status}). Falling back to ${fallback}. Error: ${errText}`);
+                console.warn(`[LLM-JUDGE] Upstream returned model error (${response.status}) for model ${currentModel}. Falling back to ${fallback}. Error: ${errText || 'No error body'}`);
                 currentModel = fallback;
                 continue;
               }
@@ -246,7 +256,6 @@ export class LlmJudgeProvider implements EvaluationProvider {
             continue;
           }
 
-          const errText = await response.text().catch(() => 'No error body');
           let classification = 'EVALUATION_ERROR';
           if (response.status === 401 || response.status === 403) {
             classification = 'AUTHENTICATION_ERROR';
@@ -256,9 +265,13 @@ export class LlmJudgeProvider implements EvaluationProvider {
             classification = 'UPSTREAM_503';
           }
           
+          const urlPattern = pLower.includes('gemini') || pLower.includes('google') || mLower.includes('gemini')
+            ? 'https://generativelanguage.googleapis.com/v1beta/models/'
+            : 'https://api.groq.com/openai/v1/chat/completions';
+
           throw new ProviderError(
             this.metadata.name,
-            `[${classification}] Upstream provider call failed with status ${response.status}: ${errText}`
+            `[${classification}] Upstream provider call failed with status ${response.status}: ${errText || 'No error body'} (Model: ${currentModel}, Endpoint: ${urlPattern}, Attempt: ${attempt}/${maxAttempts})`
           );
         }
 

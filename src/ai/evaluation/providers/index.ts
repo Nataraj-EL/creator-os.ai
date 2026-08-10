@@ -11,6 +11,104 @@ import {
 import { generationJudgeSystemPrompt, buildGenerationJudgeUserPrompt, PROMPT_VERSION } from '../prompts/generationJudge';
 import { ProviderError, ValidationError } from '../utils/errors';
 
+const normalizeKey = (key: string): string => {
+  const normalized = key.toLowerCase().replace(/[-_]/g, '');
+  if (normalized.startsWith('creatorvoice')) return 'creatorVoice';
+  if (normalized.startsWith('platformsuitability')) return 'platformSuitability';
+  return key;
+};
+
+const normalizeJudgeOutput = (rawObj: any): any => {
+  if (!rawObj || typeof rawObj !== 'object') {
+    throw new ValidationError("LLM Judge output is not a JSON object");
+  }
+
+  const normalized: any = {};
+  
+  for (const [k, v] of Object.entries(rawObj)) {
+    const normKey = normalizeKey(k);
+    normalized[normKey] = v;
+  }
+
+  const mapping: Record<string, string[]> = {
+    creatorVoice: ['creatorvoice', 'creator_voice', 'creator-voice', 'creatorVoiceAlignment', 'voice'],
+    platformSuitability: ['platformsuitability', 'platform_suitability', 'platform-suitability', 'suitability', 'platform'],
+    relevance: ['relevance', 'topic_relevance', 'relevancy'],
+    faithfulness: ['faithfulness', 'factual_accuracy', 'grounding', 'groundedness'],
+    engagement: ['engagement', 'engagement_intros_pacing', 'pacing'],
+    readability: ['readability', 'script_readability'],
+    actionability: ['actionability', 'call_to_action_strength', 'cta']
+  };
+
+  const finalObj: any = {};
+
+  const requiredMetrics = ['relevance', 'faithfulness', 'creatorVoice', 'platformSuitability', 'engagement', 'readability', 'actionability'];
+  
+  for (const key of requiredMetrics) {
+    let sourceVal = normalized[key];
+    
+    if (!sourceVal && mapping[key]) {
+      for (const alias of mapping[key]) {
+        const normAlias = normalizeKey(alias);
+        if (normalized[normAlias] !== undefined) {
+          sourceVal = normalized[normAlias];
+          break;
+        }
+      }
+    }
+
+    if (sourceVal === undefined || sourceVal === null) {
+      throw new ValidationError(`LLM Judge JSON response is missing metric block for: ${key}`);
+    }
+
+    let score = NaN;
+    if (typeof sourceVal === 'number') {
+      score = sourceVal;
+    } else if (typeof sourceVal.score === 'number') {
+      score = sourceVal.score;
+    } else if (typeof sourceVal.score === 'string') {
+      score = parseFloat(sourceVal.score);
+    } else if (typeof sourceVal === 'string') {
+      score = parseFloat(sourceVal);
+    }
+
+    if (isNaN(score)) {
+      throw new ValidationError(`LLM Judge metric ${key} does not contain a valid numeric score.`);
+    }
+
+    const reason = sourceVal.reason || sourceVal.description || rawObj.reasoning || rawObj.reason || 'No description provided.';
+
+    finalObj[key] = {
+      score,
+      reason
+    };
+  }
+
+  let overallScore = NaN;
+  if (typeof rawObj.overallScore === 'number') {
+    overallScore = rawObj.overallScore;
+  } else if (typeof rawObj.overallScore === 'string') {
+    overallScore = parseFloat(rawObj.overallScore);
+  } else if (typeof rawObj.overall_score === 'number') {
+    overallScore = rawObj.overall_score;
+  } else if (typeof rawObj.overall_score === 'string') {
+    overallScore = parseFloat(rawObj.overall_score);
+  }
+
+  let confidence = 0.90;
+  if (typeof rawObj.confidence === 'number') {
+    confidence = rawObj.confidence;
+  } else if (typeof rawObj.confidence === 'string') {
+    confidence = parseFloat(rawObj.confidence);
+  }
+
+  finalObj.overallScore = overallScore;
+  finalObj.confidence = confidence;
+  finalObj.reasoning = rawObj.reasoning || rawObj.reason || 'Completed successfully.';
+
+  return finalObj;
+};
+
 export class LlmJudgeProvider implements EvaluationProvider {
   public metadata: ProviderMetadata = {
     name: 'LLM-Judge',
@@ -66,7 +164,7 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
     const apiKey = this.getApiKey(provider, currentModel);
     if (!apiKey) {
-      throw new ProviderError(this.metadata.name, `[AUTHENTICATION_ERROR] Missing API key credentials for provider: ${provider} (model: ${currentModel})`);
+      throw new ProviderError(this.metadata.name, `[CONFIGURATION_ERROR] Missing API key credentials for provider: ${provider} (model: ${currentModel})`);
     }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -228,31 +326,30 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
     const { text: rawJsonText, resolvedModel } = await this.callLlmWithBackoff(providerName, model, systemPrompt, userPrompt);
     
+    if (!rawJsonText.trim()) {
+      throw new ValidationError('[EVALUATION_ERROR] Empty response text returned from LLM judge.');
+    }
+
     // Parse JSON with cleaning
     let parsed: any;
     let cleanedText = rawJsonText.trim();
-    if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.substring(7);
-    } else if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.substring(3);
+    const firstBrace = cleanedText.indexOf('{');
+    const lastBrace = cleanedText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
     }
-    if (cleanedText.endsWith('```')) {
-      cleanedText = cleanedText.substring(0, cleanedText.length - 3);
-    }
-    cleanedText = cleanedText.trim();
 
     try {
       parsed = JSON.parse(cleanedText);
     } catch (e: any) {
-      throw new ValidationError(`[EVALUATION_ERROR] LLM Judge output did not return valid JSON: ${e.message}. Raw output: ${rawJsonText}`);
+      throw new ValidationError(`[EVALUATION_ERROR] LLM Judge response did not contain valid JSON: ${e.message}. Raw output: ${rawJsonText}`);
     }
 
-    // Verify metrics exist in JSON
-    const requiredMetrics = ['relevance', 'faithfulness', 'creatorVoice', 'platformSuitability', 'engagement', 'readability', 'actionability'];
-    for (const metricKey of requiredMetrics) {
-      if (!parsed[metricKey] || typeof parsed[metricKey].score !== 'number' || isNaN(parsed[metricKey].score)) {
-        throw new ValidationError(`[EVALUATION_ERROR] LLM Judge JSON response is missing or has invalid metric block for: ${metricKey}`);
-      }
+    // Normalize keys and structure safely to handle variations
+    try {
+      parsed = normalizeJudgeOutput(parsed);
+    } catch (e: any) {
+      throw new ValidationError(`[EVALUATION_ERROR] LLM Judge output is invalid: ${e.message}`);
     }
 
     // Construct metrics array with weights & status mapping

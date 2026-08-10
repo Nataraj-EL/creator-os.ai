@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../../lib/store';
-import { 
-  evaluationService 
-} from '../../../ai/evaluation/services';
 import { traceRuntime } from '../../../ai/observability';
 import { 
   experimentService,
@@ -697,7 +694,24 @@ export default function DeveloperEvaluationConsole() {
       addLog(`Selecting evaluator provider: ${sampleContext.provider} (${sampleContext.model})`);
       addLog("Transmitting content bundle to API endpoint...");
       
-      const res = await evaluationService.evaluate(sampleContext);
+      const token = useAuthStore.getState().accessToken;
+      const ws = useAuthStore.getState().activeWorkspace;
+
+      const response = await fetch(`/api/evaluation?workspaceId=${ws?.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(sampleContext)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server returned status ${response.status}`);
+      }
+
+      const res = await response.json();
       
       if (res.status === EvaluationStatus.COMPLETED) {
         addLog("Response payload parsed successfully.");

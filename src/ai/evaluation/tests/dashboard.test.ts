@@ -402,7 +402,7 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
     try {
       const res = await evaluationService.evaluate(context);
       assert.strictEqual(res.status, EvaluationStatus.FAILED);
-      assert.ok(res.errorMessage?.includes('[AUTHENTICATION_ERROR]'), `Expected AUTHENTICATION_ERROR prefix, got: ${res.errorMessage}`);
+      assert.ok(res.errorMessage?.includes('[CONFIGURATION_ERROR]'), `Expected CONFIGURATION_ERROR prefix, got: ${res.errorMessage}`);
     } finally {
       if (originalApiKey) process.env.GEMINI_API_KEY = originalApiKey;
       if (originalGoogleKey) process.env.GOOGLE_API_KEY = originalGoogleKey;

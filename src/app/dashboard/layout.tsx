@@ -9,7 +9,7 @@ import {
   LayoutDashboard, FolderKanban, TrendingUp, Video, 
   Database, Users, BarChart3, Settings, Bell, 
   Menu, X, ChevronDown, LogOut, User as UserIcon, 
-  Sparkles, Plus, Check, Wand2
+  Sparkles, Plus, Check, Wand2, Loader2
 } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
 import BrandLogo from '../../components/ui/BrandLogo';
@@ -44,6 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
   // Local UI State
+  const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -55,7 +56,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     root.classList.remove('light');
     root.classList.add('dark');
     localStorage.removeItem('creatoros-theme');
+    setMounted(true);
   }, []);
+
+  // Client-side fallback guard to protect children routes if user session resolves to empty/null
+  useEffect(() => {
+    if (mounted && !user) {
+      const pathname = window.location.pathname || '';
+      const search = window.location.search || '';
+      const hash = window.location.hash || '';
+      const path = pathname + search + hash;
+      const redirectSuffix = path ? `?redirect=${encodeURIComponent(path)}` : '';
+      router.push(`/login${redirectSuffix}`);
+    }
+  }, [mounted, user, router]);
 
   // Sync workspace list from API on load
   useEffect(() => {
@@ -79,12 +93,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const validateAuth = async () => {
       try {
         await apiClient.get('/api/v1/users/me');
-      } catch (err) {
-        console.error("Startup Auth Validation failed. Token is invalid or expired:", err);
-        clearAuth();
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('creatoros-auth-storage');
-          window.location.href = '/login';
+      } catch (err: any) {
+        console.error("Startup Auth Validation failed:", err);
+        const isAuthError = err.response?.status === 401 || err.response?.status === 403;
+        if (isAuthError) {
+          clearAuth();
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('creatoros-auth-storage');
+            const pathname = window.location.pathname || '';
+            const search = window.location.search || '';
+            const hash = window.location.hash || '';
+            const path = pathname + search + hash;
+            const redirectSuffix = path ? `?redirect=${encodeURIComponent(path)}` : '';
+            window.location.href = `/login${redirectSuffix}`;
+          }
         }
       }
     };
@@ -116,6 +138,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: 2, title: 'Comment Moderation Alert', desc: '4 comments filtered from YouTube Shorts.', time: '23m ago', unread: true },
     { id: 3, title: 'Trending Topic Alert', desc: 'Trending alert: "Next.js 16" is gaining popular attention.', time: '2h ago', unread: false }
   ];
+
+  // Prevent flash of unauthenticated dashboard context before Zustand hydration completes
+  if (!mounted || !user) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#030303] relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-cyan-500/5 blur-[100px] pointer-events-none" />
+        <Loader2 className="h-10 w-10 text-cyan-400 animate-spin mb-4" />
+        <p className="text-xs text-zinc-500 font-mono tracking-widest uppercase animate-pulse">Initializing CreatorOS...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground transition-colors duration-300 overflow-hidden">

@@ -1,6 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// Safe Base64url Decode
+const base64UrlDecode = (str: string): string => {
+  try {
+    let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    if (typeof window !== 'undefined') {
+      return atob(base64);
+    }
+    return Buffer.from(base64, 'base64').toString('utf-8');
+  } catch (e) {
+    throw new Error("Invalid base64url string");
+  }
+};
+
 // Startup Auth Validation & Stale Token Auto-Cleanup Migration
 if (typeof window !== 'undefined') {
   // 4. One-Time Migration: Automatically remove raw mock keys if they exist
@@ -16,6 +32,7 @@ if (typeof window !== 'undefined') {
     if (raw) {
       const parsed = JSON.parse(raw);
       const token = parsed.state?.accessToken;
+      const refreshToken = parsed.state?.refreshToken;
       
       // 1. Invalid or Expired JWT Auto-Cleanup
       if (token) {
@@ -26,24 +43,30 @@ if (typeof window !== 'undefined') {
         if (resemblesJwt) {
           try {
             const parts = token.split('.');
-            const payload = JSON.parse(atob(parts[1]));
+            const payload = JSON.parse(base64UrlDecode(parts[1]));
             if (payload.exp && Date.now() >= payload.exp * 1000) {
               isExpired = true;
             }
           } catch (e) {
-            isExpired = true;
+            // Keep server/backend validation authoritative - do not assume expired on parse error
+            console.warn("Client JWT parsing failed, deferring to server validation:", e);
           }
         }
         
-        if (!resemblesJwt || startsWithMock || isExpired) {
+        if (startsWithMock || (isExpired && !refreshToken)) {
           console.warn("Stale, invalid, or expired token detected during startup. Cleaning up auth storage...");
           localStorage.removeItem('creatoros-auth-storage');
           
           // Delete auth cookie
           document.cookie = `creatoros-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
           
-          // Redirect to /login
-          window.location.href = '/login';
+          // Redirect to /login preserving path
+          const pathname = window.location.pathname || '';
+          const search = window.location.search || '';
+          const hash = window.location.hash || '';
+          const path = pathname + search + hash;
+          const redirectSuffix = path ? `?redirect=${encodeURIComponent(path)}` : '';
+          window.location.href = `/login${redirectSuffix}`;
         }
       }
     }

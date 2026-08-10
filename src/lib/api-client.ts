@@ -7,24 +7,101 @@ export const apiClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
+// Safe Base64url Decode
+const base64UrlDecode = (str: string): string => {
+  try {
+    let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    if (typeof window !== 'undefined') {
+      return atob(base64);
+    }
+    return Buffer.from(base64, 'base64').toString('utf-8');
+  } catch (e) {
+    throw new Error("Invalid base64url string");
+  }
+};
+
 const isTokenExpired = (token: string | null) => {
   if (!token) return true;
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return true;
-    // Decode base64 payload safely
-    const payload = JSON.parse(
-      typeof window !== 'undefined' 
-        ? atob(parts[1]) 
-        : Buffer.from(parts[1], 'base64').toString('utf-8')
-    );
+    const payload = JSON.parse(base64UrlDecode(parts[1]));
     if (payload.exp && Date.now() >= payload.exp * 1000) {
       return true;
     }
     return false;
   } catch (e) {
-    return true;
+    // Keep server validation authoritative - do not proactively expire on decode/parse error
+    return false;
   }
+};
+
+// Global queuing controls to prevent duplicate token refresh requests
+let isRefreshing = false;
+let failedQueue: any[] = [];
+let activeRefreshPromise: Promise<string> | null = null;
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+const executeTokenRefresh = async (refreshToken: string): Promise<string> => {
+  if (isRefreshing && activeRefreshPromise) {
+    const result = await activeRefreshPromise;
+    if (result) return result;
+    throw new Error("Refresh token execution failed.");
+  }
+
+  isRefreshing = true;
+  activeRefreshPromise = (async () => {
+    try {
+      const refreshResponse = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        refreshToken,
+      });
+      const { accessToken, refreshToken: newRefreshToken, user, workspaces } = refreshResponse.data;
+      useAuthStore.getState().setAuth(accessToken, newRefreshToken, user, workspaces);
+      isRefreshing = false;
+      processQueue(null, accessToken);
+      return accessToken as string;
+    } catch (refreshError) {
+      isRefreshing = false;
+      processQueue(refreshError, null);
+      
+      // Clear session ONLY when backend definitively rejects the refresh token (401/403/400)
+      const isDefinitiveFailure = 
+        axios.isAxiosError(refreshError) && 
+        refreshError.response && 
+        (refreshError.response.status === 401 || refreshError.response.status === 403 || refreshError.response.status === 400);
+
+      if (isDefinitiveFailure) {
+        useAuthStore.getState().clearAuth();
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('creatoros-auth-storage');
+          const pathname = window.location.pathname || '';
+          const search = window.location.search || '';
+          const hash = window.location.hash || '';
+          const path = pathname + search + hash;
+          const redirectSuffix = path ? `?redirect=${encodeURIComponent(path)}` : '';
+          window.location.href = `/login${redirectSuffix}`;
+        }
+      }
+      throw refreshError;
+    } finally {
+      activeRefreshPromise = null;
+    }
+  })();
+
+  return activeRefreshPromise;
 };
 
 // Interceptor to inject tokens and trace IDs
@@ -41,27 +118,22 @@ apiClient.interceptors.request.use(
 
     // Proactively refresh the access token if it's expired and we are not calling auth endpoints
     if (accessToken && isTokenExpired(accessToken) && !config.url?.includes('/auth/')) {
-      if (refreshToken && !isTokenExpired(refreshToken)) {
+      if (refreshToken) {
         try {
-          const refreshResponse = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            refreshToken,
-          });
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken, user, workspaces } = refreshResponse.data;
-          useAuthStore.getState().setAuth(newAccessToken, newRefreshToken, user, workspaces);
-          accessToken = newAccessToken;
+          accessToken = await executeTokenRefresh(refreshToken);
         } catch (err) {
-          useAuthStore.getState().clearAuth();
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('creatoros-auth-storage');
-            window.location.href = '/login';
-          }
           return Promise.reject(err);
         }
       } else {
         useAuthStore.getState().clearAuth();
         if (typeof window !== 'undefined') {
           localStorage.removeItem('creatoros-auth-storage');
-          window.location.href = '/login';
+          const pathname = window.location.pathname || '';
+          const search = window.location.search || '';
+          const hash = window.location.hash || '';
+          const path = pathname + search + hash;
+          const redirectSuffix = path ? `?redirect=${encodeURIComponent(path)}` : '';
+          window.location.href = `/login${redirectSuffix}`;
         }
         return Promise.reject(new Error("Refresh token expired or missing. Please login again."));
       }
@@ -74,21 +146,6 @@ apiClient.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
-
-// Interceptor to handle token refresh on 401 errors
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -104,45 +161,21 @@ apiClient.interceptors.response.use(
         useAuthStore.getState().clearAuth();
         if (typeof window !== 'undefined') {
           localStorage.removeItem('creatoros-auth-storage');
-          window.location.href = '/login';
+          const pathname = window.location.pathname || '';
+          const search = window.location.search || '';
+          const hash = window.location.hash || '';
+          const path = pathname + search + hash;
+          const redirectSuffix = path ? `?redirect=${encodeURIComponent(path)}` : '';
+          window.location.href = `/login${redirectSuffix}`;
         }
         return Promise.reject(error);
       }
 
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers['Authorization'] = `Bearer ${token}`;
-            return apiClient(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      isRefreshing = true;
-
       try {
-        const refreshResponse = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken, user, workspaces } = refreshResponse.data;
-        useAuthStore.getState().setAuth(accessToken, newRefreshToken, user, workspaces);
-
-        isRefreshing = false;
-        processQueue(null, accessToken);
-
-        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+        const newAccessToken = await executeTokenRefresh(refreshToken);
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        isRefreshing = false;
-        processQueue(refreshError, null);
-        useAuthStore.getState().clearAuth();
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('creatoros-auth-storage');
-          window.location.href = '/login';
-        }
         return Promise.reject(refreshError);
       }
     }

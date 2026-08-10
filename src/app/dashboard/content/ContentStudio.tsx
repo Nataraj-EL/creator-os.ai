@@ -420,6 +420,7 @@ export function ContentStudioPage(props: {
         setIsOnboarding(false);
         setNewTitle('');
         setNewTopic('');
+        setEditorTab('preview');
         await fetchProjects(activeWorkspace.id, data.projectId);
         clearInterval(stepInterval);
         return;
@@ -471,6 +472,7 @@ export function ContentStudioPage(props: {
                 setEditorHook(normalizeBullets(resData.hook || ''));
                 setEditorScript(normalizeBullets(resData.scriptDraft || resData.script || resData.content || ''));
                 setEditorCta(normalizeBullets(resData.cta || ''));
+                setEditorTab('preview');
                 await fetchProjects(activeWorkspace.id, resData.projectId);
               }
             } else if (event.type === 'error') {

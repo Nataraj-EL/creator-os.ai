@@ -518,5 +518,92 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
       delete process.env.EVALUATOR_FALLBACK_MODEL;
       delete process.env.GEMINI_API_KEY;
     }
+
+    // 10.5 Primary and fallback models both unavailable -> immediate throw CONFIGURATION_ERROR without retry
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    process.env.EVALUATOR_MODEL = 'gemini-1.5-pro';
+    process.env.EVALUATOR_FALLBACK_MODEL = 'gemini-1.5-flash';
+
+    let bothUnavailableCalls = 0;
+    globalThis.fetch = async (url: any, init: any) => {
+      const urlStr = url.toString();
+      bothUnavailableCalls++;
+      // Return 404 for both models
+      return new Response('', { status: 404 });
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.FAILED);
+      assert.ok(res.errorMessage?.includes('[CONFIGURATION_ERROR]'), `Expected CONFIGURATION_ERROR prefix, got: ${res.errorMessage}`);
+      assert.ok(res.errorMessage?.includes('Fallback model'), `Expected mentions of fallback failure, got: ${res.errorMessage}`);
+      assert.strictEqual(bothUnavailableCalls, 4); // 4 candidate models tried in sequence, no repeated 3x retries!
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.EVALUATOR_MODEL;
+      delete process.env.EVALUATOR_FALLBACK_MODEL;
+      delete process.env.GEMINI_API_KEY;
+    }
+
+    // 10.6 ListModels filtering for generateContent
+    process.env.GEMINI_API_KEY = 'real-style-api-key'; // Keep it not mock-api-key so listModels is called
+    process.env.EVALUATOR_MODEL = 'gemini-nonexistent';
+    process.env.EVALUATOR_FALLBACK_MODEL = 'gemini-fallback-nonexistent';
+
+    let listModelsCalls = 0;
+    let goodModelCalls = 0;
+    let badModelCalls = 0;
+
+    globalThis.fetch = async (url: any, init: any) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/models?key=')) {
+        listModelsCalls++;
+        return new Response(JSON.stringify({
+          models: [
+            { name: 'models/gemini-bad-model', supportedMethods: ['embedContent'] },
+            { name: 'models/gemini-good-model', supportedMethods: ['generateContent'] }
+          ]
+        }), { status: 200 });
+      }
+      if (urlStr.includes('/models/gemini-good-model')) {
+        goodModelCalls++;
+        return new Response(JSON.stringify({
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  relevance: { score: 8, confidence: 0.8, reason: 'Good' },
+                  faithfulness: { score: 8, confidence: 0.8, reason: 'Good' },
+                  creatorVoice: { score: 8, confidence: 0.8, reason: 'Good' },
+                  platformSuitability: { score: 8, confidence: 0.8, reason: 'Good' },
+                  engagement: { score: 8, confidence: 0.8, reason: 'Good' },
+                  readability: { score: 8, confidence: 0.8, reason: 'Good' },
+                  actionability: { score: 8, confidence: 0.8, reason: 'Good' },
+                  overallScore: 80
+                })
+              }]
+            }
+          }]
+        }), { status: 200 });
+      }
+      if (urlStr.includes('/models/gemini-bad-model')) {
+        badModelCalls++;
+      }
+      return new Response('', { status: 404 });
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.COMPLETED);
+      assert.strictEqual(res.context.metadata?.judgeModel, 'gemini-good-model');
+      assert.strictEqual(listModelsCalls, 1);
+      assert.strictEqual(goodModelCalls, 1);
+      assert.strictEqual(badModelCalls, 0); // Must be filtered out and never called!
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.EVALUATOR_MODEL;
+      delete process.env.EVALUATOR_FALLBACK_MODEL;
+      delete process.env.GEMINI_API_KEY;
+    }
   });
 });

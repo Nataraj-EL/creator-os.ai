@@ -150,6 +150,30 @@ export class LlmJudgeProvider implements EvaluationProvider {
     return '';
   }
 
+  private async listSupportedGeminiModels(apiKey: string): Promise<string[]> {
+    if (apiKey === 'mock-api-key' || apiKey === 'mock-key-value' || apiKey.startsWith('mock-')) {
+      return [];
+    }
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+      const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+      if (!res.ok) {
+        throw new Error(`Failed to list models: status ${res.status}`);
+      }
+      const data = await res.json();
+      const models = data.models || [];
+      const generateModels = models.filter((m: any) => {
+        const methods = m.supportedMethods || [];
+        return methods.includes('generateContent') || methods.some((sm: string) => sm.endsWith('generateContent'));
+      });
+      return generateModels.map((m: any) => m.name.replace('models/', ''));
+    } catch (e: any) {
+      console.warn(`[LLM-JUDGE] Failed to list available models dynamically: ${e.message}`);
+      return [];
+    }
+  }
+
   private async callLlmWithBackoff(
     provider: string,
     model: string,
@@ -158,23 +182,68 @@ export class LlmJudgeProvider implements EvaluationProvider {
   ): Promise<{ text: string; resolvedModel: string }> {
     const maxAttempts = 3;
     let baseDelay = 500; // ms
-    let currentModel = model;
-
-    // Detect known deprecated Gemini models before sending upstream requests
-    const deprecatedGeminiModels = ['gemini-1.0-pro', 'gemini-1.0-pro-001', 'gemini-1.0-pro-vision', 'gemini-1.0-ultra'];
     const pLower = provider.toLowerCase();
-    if (pLower.includes('gemini') && deprecatedGeminiModels.includes(currentModel.toLowerCase())) {
-      const fallback = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
-      console.warn(`Configured Gemini model ${currentModel} is deprecated. Falling back to ${fallback}`);
-      currentModel = fallback;
+
+    // 1. Resolve API Key first
+    const apiKey = this.getApiKey(provider, model);
+    if (!apiKey) {
+      throw new ProviderError(this.metadata.name, `[CONFIGURATION_ERROR] Missing API key credentials for provider: ${provider} (model: ${model})`);
     }
 
-    const apiKey = this.getApiKey(provider, currentModel);
-    if (!apiKey) {
-      throw new ProviderError(this.metadata.name, `[CONFIGURATION_ERROR] Missing API key credentials for provider: ${provider} (model: ${currentModel})`);
+    // 2. Build candidates list in order of preference
+    const candidates: string[] = [];
+    const addCandidate = (m: string) => {
+      if (m && !candidates.includes(m)) {
+        candidates.push(m);
+      }
+    };
+
+    let startModel = model;
+    const deprecatedGeminiModels = ['gemini-1.0-pro', 'gemini-1.0-pro-001', 'gemini-1.0-pro-vision', 'gemini-1.0-ultra'];
+    if (pLower.includes('gemini') && deprecatedGeminiModels.includes(startModel.toLowerCase())) {
+      startModel = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
     }
+
+    addCandidate(startModel);
+    const fallback = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
+    addCandidate(fallback);
+
+    // If using Gemini, dynamically list supported models and append them as candidates
+    if (pLower.includes('gemini') || pLower.includes('google')) {
+      const availableModels = await this.listSupportedGeminiModels(apiKey);
+      if (availableModels.length > 0) {
+        // Prefer modern stable models first
+        const modernPreferredList = [
+          'gemini-2.5-flash',
+          'gemini-2.5-pro',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro'
+        ];
+        for (const modern of modernPreferredList) {
+          if (availableModels.includes(modern)) {
+            addCandidate(modern);
+          }
+        }
+        for (const av of availableModels) {
+          addCandidate(av);
+        }
+      } else {
+        // Safe defaults if dynamic listing is unavailable
+        addCandidate('gemini-2.5-flash');
+        addCandidate('gemini-2.5-pro');
+        addCandidate('gemini-1.5-flash');
+        addCandidate('gemini-1.5-pro');
+      }
+    }
+
+    let candidateIndex = 0;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const currentModel = candidates[candidateIndex];
+      if (!currentModel) {
+        throw new ProviderError(this.metadata.name, `[CONFIGURATION_ERROR] No evaluation candidate models configured.`);
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -240,11 +309,23 @@ export class LlmJudgeProvider implements EvaluationProvider {
               !errLower.trim(); // Fallback if there is no error body
               
             if (isModelError) {
-              const fallback = process.env.EVALUATOR_FALLBACK_MODEL || 'gemini-1.5-flash';
-              if (currentModel !== fallback) {
-                console.warn(`[LLM-JUDGE] Upstream returned model error (${response.status}) for model ${currentModel}. Falling back to ${fallback}. Error: ${errText || 'No error body'}`);
-                currentModel = fallback;
+              const urlPattern = pLower.includes('gemini') || pLower.includes('google') || mLower.includes('gemini')
+                ? 'https://generativelanguage.googleapis.com/v1beta/models/'
+                : 'https://api.groq.com/openai/v1/chat/completions';
+
+              if (candidateIndex < candidates.length - 1) {
+                const failedModel = currentModel;
+                candidateIndex++;
+                const nextModel = candidates[candidateIndex];
+                console.warn(`[LLM-JUDGE] Upstream returned model error (${response.status}) for model ${failedModel}. Falling back to ${nextModel}. Error: ${errText || 'No error body'}`);
+                attempt = 0; // Reset attempts to start fresh for the fallback model
                 continue;
+              } else {
+                // If we are already on the last candidate model, throw immediately without retrying
+                throw new ProviderError(
+                  this.metadata.name,
+                  `[CONFIGURATION_ERROR] Fallback model ${currentModel} also failed with status ${response.status}: ${errText || 'No error body'} (Attempted model: ${model}, Fallback candidates tried: ${candidates.slice(0, candidateIndex + 1).join(', ')}, Endpoint: ${urlPattern})`
+                );
               }
             }
           }
@@ -292,12 +373,17 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
       } catch (err: any) {
         clearTimeout(timeoutId);
+        const isNonTransient = err instanceof ProviderError && (
+          err.message.includes('[CONFIGURATION_ERROR]') ||
+          err.message.includes('[AUTHENTICATION_ERROR]')
+        );
+
         const isTimeout = err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('aborted');
         const displayErr = isTimeout 
           ? new ProviderError(this.metadata.name, `[UPSTREAM_503] Upstream call timed out after 5000ms.`)
           : (err instanceof ProviderError ? err : new ProviderError(this.metadata.name, `[EVALUATION_ERROR] ${err.message}`));
 
-        if (attempt === maxAttempts) {
+        if (isNonTransient || attempt === maxAttempts) {
           throw displayErr;
         }
         const delay = baseDelay * Math.pow(2, attempt - 1);

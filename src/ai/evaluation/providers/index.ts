@@ -129,17 +129,24 @@ export class LlmJudgeProvider implements EvaluationProvider {
     }
     
     if (process.env.EVALUATOR_API_KEY) {
+      console.log(`[LLM-JUDGE] ${provider} credential configured: true (source: EVALUATOR_API_KEY)`);
       return process.env.EVALUATOR_API_KEY;
     }
 
     const pLower = provider.toLowerCase();
     const mLower = model.toLowerCase();
     if (pLower.includes('gemini') || pLower.includes('google') || mLower.includes('gemini')) {
+      const source = process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : (process.env.GOOGLE_API_KEY ? 'GOOGLE_API_KEY' : '');
+      const configured = !!source;
+      console.log(`[LLM-JUDGE] Gemini credential configured: ${configured} ${configured ? `(source: ${source})` : '(missing)'}`);
       return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
     }
     if (pLower.includes('groq') || mLower.includes('llama') || mLower.includes('mixtral')) {
+      const configured = !!process.env.GROQ_API_KEY;
+      console.log(`[LLM-JUDGE] Groq credential configured: ${configured} ${configured ? '(source: GROQ_API_KEY)' : '(missing)'}`);
       return process.env.GROQ_API_KEY || '';
     }
+    console.log(`[LLM-JUDGE] ${provider} credential configured: false (unsupported provider or model: ${model})`);
     return '';
   }
 

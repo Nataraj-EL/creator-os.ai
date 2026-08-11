@@ -605,5 +605,101 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
       delete process.env.EVALUATOR_FALLBACK_MODEL;
       delete process.env.GEMINI_API_KEY;
     }
+
+    // 10.7 successful evaluation within timeout
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    process.env.EVALUATOR_TIMEOUT_MS = '2000';
+    let timeoutTestCalls = 0;
+    globalThis.fetch = async (url: any, init: any) => {
+      timeoutTestCalls++;
+      return new Response(JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                relevance: { score: 9, confidence: 0.9, reason: 'Good' },
+                faithfulness: { score: 9, confidence: 0.9, reason: 'Good' },
+                creatorVoice: { score: 9, confidence: 0.9, reason: 'Good' },
+                platformSuitability: { score: 9, confidence: 0.9, reason: 'Good' },
+                engagement: { score: 9, confidence: 0.9, reason: 'Good' },
+                readability: { score: 9, confidence: 0.9, reason: 'Good' },
+                actionability: { score: 9, confidence: 0.9, reason: 'Good' },
+                overallScore: 90
+              })
+            }]
+          }
+        }]
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.COMPLETED);
+      assert.strictEqual(timeoutTestCalls, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.EVALUATOR_TIMEOUT_MS;
+    }
+
+    // 10.8 timeout classification and 10.9 429/5xx / timeout retry limits (timeout retries at most once)
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    process.env.EVALUATOR_TIMEOUT_MS = '500';
+    let timeoutFailCalls = 0;
+    globalThis.fetch = async (url: any, init: any) => {
+      timeoutFailCalls++;
+      throw new DOMException('The user aborted a request.', 'AbortError');
+    };
+
+    const originalSetTimeoutTest = globalThis.setTimeout;
+    (globalThis as any).setTimeout = (fn: any, delay: any) => fn();
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.FAILED);
+      assert.ok(res.errorMessage?.includes('[UPSTREAM_TIMEOUT]'), `Expected UPSTREAM_TIMEOUT prefix, got: ${res.errorMessage}`);
+      assert.ok(res.errorMessage?.includes('Gemini evaluator timed out after 500ms'), `Expected mentions of timeout limit, got: ${res.errorMessage}`);
+      assert.strictEqual(timeoutFailCalls, 2); // 1 initial + 1 retry = 2 total attempts for timeout
+    } finally {
+      globalThis.fetch = originalFetch;
+      globalThis.setTimeout = originalSetTimeoutTest;
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.EVALUATOR_TIMEOUT_MS;
+    }
+
+    // 10.10 configured timeout value validation
+    process.env.GEMINI_API_KEY = 'mock-key-value';
+    process.env.EVALUATOR_TIMEOUT_MS = '12345';
+    globalThis.fetch = async (url: any, init: any) => {
+      throw new DOMException('The user aborted a request.', 'AbortError');
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.FAILED);
+      assert.ok(res.errorMessage?.includes('Gemini evaluator timed out after 12345ms'), `Expected custom timeout value in error, got: ${res.errorMessage}`);
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.EVALUATOR_TIMEOUT_MS;
+    }
+
+    // 10.11 no API key/model leakage in logs
+    process.env.GEMINI_API_KEY = 'super-secret-key-123456';
+    process.env.EVALUATOR_TIMEOUT_MS = '100';
+    globalThis.fetch = async (url: any, init: any) => {
+      throw new DOMException('The user aborted a request.', 'AbortError');
+    };
+
+    try {
+      const res = await evaluationService.evaluate(context);
+      assert.strictEqual(res.status, EvaluationStatus.FAILED);
+      assert.ok(!res.errorMessage?.includes('super-secret-key-123456'), 'Error message leaked the super secret API key!');
+      assert.ok(!res.errorMessage?.includes('key='), 'Error message leaked the query param structure!');
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.EVALUATOR_TIMEOUT_MS;
+    }
   });
 });

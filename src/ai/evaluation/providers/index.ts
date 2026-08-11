@@ -236,6 +236,14 @@ export class LlmJudgeProvider implements EvaluationProvider {
       }
     }
 
+    let timeoutMs = 30000;
+    if (process.env.EVALUATOR_TIMEOUT_MS) {
+      const parsed = parseInt(process.env.EVALUATOR_TIMEOUT_MS, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        timeoutMs = parsed;
+      }
+    }
+
     let candidateIndex = 0;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -245,7 +253,7 @@ export class LlmJudgeProvider implements EvaluationProvider {
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
         let response: Response;
@@ -380,10 +388,12 @@ export class LlmJudgeProvider implements EvaluationProvider {
 
         const isTimeout = err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('aborted');
         const displayErr = isTimeout 
-          ? new ProviderError(this.metadata.name, `[UPSTREAM_503] Upstream call timed out after 5000ms.`)
+          ? new ProviderError(this.metadata.name, `[UPSTREAM_TIMEOUT] Gemini evaluator timed out after ${timeoutMs}ms`)
           : (err instanceof ProviderError ? err : new ProviderError(this.metadata.name, `[EVALUATION_ERROR] ${err.message}`));
 
-        if (isNonTransient || attempt === maxAttempts) {
+        // Timeout allows at most 1 retry (max 2 attempts)
+        const maxTimeoutAttempts = 2;
+        if (isNonTransient || (isTimeout && attempt >= maxTimeoutAttempts) || attempt === maxAttempts) {
           throw displayErr;
         }
         const delay = baseDelay * Math.pow(2, attempt - 1);

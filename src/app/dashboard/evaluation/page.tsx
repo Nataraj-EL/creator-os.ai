@@ -119,6 +119,38 @@ const SEED_RECORDS: EvaluationResult[] = [
   }
 ];
 
+const renderLogLine = (log: string) => {
+  // Pattern: [timestamp] message
+  const match = log.match(/^\[(.*?)\]\s(.*)$/);
+  if (!match) {
+    return <span className="text-zinc-800">{log}</span>;
+  }
+  const timestamp = match[1];
+  const message = match[2];
+
+  let messageElement = <span className="text-zinc-800">{message}</span>;
+  const lowerMsg = message.toLowerCase();
+
+  if (lowerMsg.includes('failed') || lowerMsg.includes('error') || lowerMsg.includes('err')) {
+    messageElement = <span className="text-red-600 font-semibold">{message}</span>;
+  } else if (lowerMsg.includes('pass') || lowerMsg.includes('successfully') || lowerMsg.includes('completed')) {
+    messageElement = <span className="text-emerald-600 font-semibold">{message}</span>;
+  } else if (lowerMsg.includes('skipped') || lowerMsg.includes('disabled')) {
+    messageElement = <span className="text-amber-600 font-semibold">{message}</span>;
+  } else if (lowerMsg.includes('warn') || lowerMsg.includes('warning')) {
+    messageElement = <span className="text-amber-600 font-semibold">{message}</span>;
+  } else if (lowerMsg.includes('initializing') || lowerMsg.includes('selecting') || lowerMsg.includes('loading') || lowerMsg.includes('transmitting')) {
+    messageElement = <span className="text-zinc-700 font-medium">{message}</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap items-start gap-1 py-0.5 whitespace-pre-wrap break-words leading-relaxed text-left">
+      <span className="text-zinc-500 font-mono select-none">[{timestamp}]</span>
+      {messageElement}
+    </div>
+  );
+};
+
 export default function DeveloperEvaluationConsole() {
   const user = useAuthStore((state) => state.user);
   const activeWorkspace = useAuthStore((state) => state.activeWorkspace);
@@ -818,22 +850,22 @@ export default function DeveloperEvaluationConsole() {
 
       {/* SANDBOX RUN LOGS */}
       {simulatedLogs.length > 0 && (
-        <div className="bg-black/40 border border-white/5 rounded-2xl p-5 font-mono text-[11px] text-cyan-400 space-y-1.5 shadow-inner">
-          <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
-            <span className="font-semibold text-white flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
+        <div className="glass-card border border-white/10 rounded-2xl p-5 shadow-inner">
+          <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-3">
+            <span className="font-bold text-zinc-900 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
               <span>Real-time Sandbox Audit Execution Logs</span>
             </span>
             <button 
               onClick={() => setSimulatedLogs([])}
-              className="text-zinc-500 hover:text-zinc-300 focus:outline-none cursor-pointer"
+              className="text-zinc-500 hover:text-zinc-800 text-xs font-semibold focus:outline-none cursor-pointer transition-colors"
             >
               Close logs
             </button>
           </div>
-          <div className="max-h-40 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+          <div className="max-h-40 overflow-y-auto space-y-1 pr-2 custom-scrollbar text-xs font-mono">
             {simulatedLogs.map((log, index) => (
-              <div key={index} className="leading-relaxed">{log}</div>
+              <div key={index}>{renderLogLine(log)}</div>
             ))}
           </div>
         </div>

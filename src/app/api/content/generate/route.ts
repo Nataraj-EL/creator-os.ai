@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateContent, generateContentStream } from '../../../../lib/generationService';
 import { z } from 'zod';
+import { after } from 'next/server';
 
 const generationRequestSchema = z.object({
   title: z.string().min(1).max(200),
@@ -122,21 +123,21 @@ export async function POST(request: Request) {
 
             // Asynchronously trigger Promptfoo demo evaluation on success
             if (process.env.PROMPTFOO_RUNTIME_DEMO === 'true') {
-              import('../../../../ai/evaluation/promptfoo/runner')
-                .then(({ runRegression }) => {
-                  runRegression({
-                    providerName: 'mock',
-                    modelName: 'mock-model',
-                    mockMode: true,
-                    tenantId,
-                    workspaceId
-                  }).catch(err => {
+              after(() => {
+                import('../../../../ai/evaluation/promptfoo/runner')
+                  .then(({ runRegression }) => {
+                    return runRegression({
+                      providerName: 'mock',
+                      modelName: 'mock-model',
+                      mockMode: true,
+                      tenantId,
+                      workspaceId
+                    });
+                  })
+                  .catch(err => {
                     console.error('[Promptfoo-Demo] Async runner failed:', err.message);
                   });
-                })
-                .catch(err => {
-                  console.error('[Promptfoo-Demo] Failed to dynamically load runner:', err.message);
-                });
+              });
             }
           } catch (err: any) {
             // Error events are emitted via generateContentStream, clean closure ensures safety
@@ -188,21 +189,21 @@ export async function POST(request: Request) {
 
     // Asynchronously trigger Promptfoo demo evaluation on success
     if (process.env.PROMPTFOO_RUNTIME_DEMO === 'true') {
-      import('../../../../ai/evaluation/promptfoo/runner')
-        .then(({ runRegression }) => {
-          runRegression({
-            providerName: 'mock',
-            modelName: 'mock-model',
-            mockMode: true,
-            tenantId,
-            workspaceId
-          }).catch(err => {
+      after(() => {
+        import('../../../../ai/evaluation/promptfoo/runner')
+          .then(({ runRegression }) => {
+            return runRegression({
+              providerName: 'mock',
+              modelName: 'mock-model',
+              mockMode: true,
+              tenantId,
+              workspaceId
+            });
+          })
+          .catch(err => {
             console.error('[Promptfoo-Demo] Async runner failed:', err.message);
           });
-        })
-        .catch(err => {
-          console.error('[Promptfoo-Demo] Failed to dynamically load runner:', err.message);
-        });
+      });
     }
 
     return NextResponse.json(result.data);

@@ -151,7 +151,7 @@ export class LlmJudgeProvider implements EvaluationProvider {
   }
 
   private async listSupportedGeminiModels(apiKey: string): Promise<string[]> {
-    if (apiKey === 'mock-api-key' || apiKey === 'mock-key-value' || apiKey.startsWith('mock-')) {
+    if (apiKey === 'mock-api-key' || apiKey === 'mock-key-value' || apiKey.startsWith('mock-') || apiKey.toLowerCase().includes('mock')) {
       return [];
     }
 
@@ -546,20 +546,25 @@ export class PromptfooProvider implements EvaluationProvider {
 
     try {
       const { runPromptfooEval } = await import('../promptfoo/adapter');
+      const datasetJson = await import('../promptfoo/dataset.json').then(m => m.default || m);
 
       const title = context.metadata?.title || 'System Test';
       const topic = context.metadata?.inputPrompt || context.metadata?.topic || '';
       const primaryGoal = context.metadata?.primaryGoal || 'Reach';
       const generatedContent = context.metadata?.generatedContent || '';
 
+      // Find matching test case from dataset.json or fallback
+      const match = datasetJson.find((t: any) => 
+        t.vars.title.toLowerCase() === title.toLowerCase() ||
+        title.toLowerCase().includes(t.vars.title.toLowerCase()) ||
+        t.vars.title.toLowerCase().includes(title.toLowerCase())
+      );
+
+      const assertions = match ? match.assert : datasetJson[0].assert;
+
       const testCase = {
         vars: { title, topic, primaryGoal },
-        assert: [
-          {
-            type: 'javascript',
-            value: 'output.length > 0'
-          }
-        ]
+        assert: assertions
       };
 
       const customProvider = {
@@ -576,28 +581,59 @@ export class PromptfooProvider implements EvaluationProvider {
       });
 
       const firstResult = pfResult.results?.[0];
-      const overallScore = Math.round((firstResult?.gradingResult?.score || 1.0) * 100);
+      const overallScore = Math.round((firstResult?.gradingResult?.score !== undefined ? firstResult.gradingResult.score : (firstResult?.success ? 1.0 : 0.0)) * 100);
 
-      let status: 'pass' | 'fail' | 'warning' = 'pass';
-      if (overallScore < 60) status = 'fail';
-      else if (overallScore < 80) status = 'warning';
+      const componentResults = firstResult?.gradingResult?.componentResults || [];
+      const metrics = componentResults.length > 0 
+        ? componentResults.map((c: any, idx: number) => {
+            const score = Math.round((c.score !== undefined ? c.score : (c.pass ? 1.0 : 0.0)) * 100);
+            let status: 'pass' | 'fail' | 'warning' = 'pass';
+            if (score < 60) status = 'fail';
+            else if (score < 80) status = 'warning';
+
+            return {
+              metricId: c.assertion?.metric || `assert-${idx}`,
+              name: `Assertion: ${c.assertion?.type || 'match'}`,
+              score,
+              weight: 1.0,
+              confidence: 0.95,
+              status,
+              reason: c.reason || (c.pass ? 'Assertion passed' : 'Assertion failed')
+            };
+          })
+        : [
+            {
+              metricId: 'prompt-assertions',
+              name: 'Assertion Testing',
+              score: overallScore,
+              weight: 1.0,
+              confidence: 0.95,
+              status: (overallScore < 60 ? 'fail' : overallScore < 80 ? 'warning' : 'pass') as any,
+              reason: firstResult?.gradingResult?.reason || 'Configured assertions satisfied.'
+            }
+          ];
+
+      const { calculateDecision } = await import('../utils/decision');
+      
+      const scoresMap = {
+        relevance: overallScore,
+        grounding: overallScore,
+        responseQuality: overallScore,
+        contextUsage: overallScore,
+        llmJudge: overallScore
+      };
+      
+      const decision = calculateDecision(scoresMap, ['relevance', 'grounding', 'responseQuality', 'contextUsage', 'llmJudge']);
+      const isSuccess = !!firstResult?.success;
+      const finalStatus = isSuccess ? EvaluationStatus.COMPLETED : EvaluationStatus.FAILED;
 
       return {
         evaluationId: `eval-pf-${Math.random().toString(36).substring(2, 9)}`,
         context,
-        status: EvaluationStatus.COMPLETED,
-        metrics: [
-          {
-            metricId: 'prompt-assertions',
-            name: 'Assertion Testing',
-            score: overallScore,
-            weight: 1.0,
-            confidence: 0.95,
-            status,
-            reason: firstResult?.gradingResult?.reason || 'Configured assertions satisfied.'
-          }
-        ],
+        status: finalStatus,
+        metrics,
         overallScore,
+        decision,
         latencyMs: Date.now() - startTime,
         createdAt: new Date().toISOString()
       };

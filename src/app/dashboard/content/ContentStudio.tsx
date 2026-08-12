@@ -361,13 +361,13 @@ export function ContentStudioPage(props: {
     setGenerating(true);
     setGenerationStep(0);
 
-    // Reset draft fields to new values immediately to mount the editor cleanly
     setEditorTitle(newTitle);
     setEditorTopic(newTopic);
     setEditorPrimaryGoal(newPrimaryGoal);
     setEditorHook('');
     setEditorScript('');
     setEditorCta('');
+    setEditorTab('edit');
     setIsOnboarding(false);
 
     const stepInterval = setInterval(() => {
@@ -1478,7 +1478,7 @@ export function ContentStudioPage(props: {
                         </div>
                         <button
                           onClick={handleCancelGeneration}
-                          className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white border border-white/10 hover:border-white/20 bg-black/40 rounded-xl cursor-pointer transition-all focus:outline-none"
+                          className="px-4 py-2 text-xs font-bold text-zinc-700 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300 bg-zinc-50 hover:bg-zinc-100 rounded-xl cursor-pointer transition-all focus:outline-none flex-shrink-0"
                         >
                           Cancel
                         </button>
@@ -1493,8 +1493,9 @@ export function ContentStudioPage(props: {
                         <textarea
                           value={editorTopic}
                           onChange={(e) => setEditorTopic(e.target.value)}
+                          disabled={generating}
                           rows={2}
-                          className="w-full bg-card border border-border rounded-xl p-3 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-brand transition-all resize-none font-medium leading-relaxed"
+                          className="w-full bg-card border border-border rounded-xl p-3 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-brand transition-all resize-none font-medium leading-relaxed disabled:opacity-85"
                           placeholder="Specify your draft details..."
                         />
                       </div>
@@ -1503,7 +1504,8 @@ export function ContentStudioPage(props: {
                         <select
                           value={editorPrimaryGoal}
                           onChange={(e) => setEditorPrimaryGoal(e.target.value)}
-                          className="w-full bg-card border border-border rounded-xl p-3.5 text-xs text-foreground focus:outline-none focus:border-brand transition-all cursor-pointer"
+                          disabled={generating}
+                          className="w-full bg-card border border-border rounded-xl p-3.5 text-xs text-foreground focus:outline-none focus:border-brand transition-all cursor-pointer disabled:opacity-85"
                         >
                           <option value="Reach">Reach</option>
                           <option value="Brand Awareness">Brand Awareness</option>
@@ -1550,15 +1552,16 @@ export function ContentStudioPage(props: {
                         value={editorHook}
                         onChange={(e) => setEditorHook(e.target.value)}
                         onBlur={(e) => setEditorHook(normalizeBullets(e.target.value))}
+                        disabled={generating}
                         rows={3}
-                        className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-cyan-500"
+                        className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-cyan-500 disabled:opacity-85"
                         placeholder="Generated hook variant content..."
                       />
                       {generating && !editorHook && (
                         <div className="absolute inset-0 bg-card border border-border rounded-xl p-4.5 flex flex-col gap-3 justify-center">
-                          <div className="h-2.5 w-3/4 bg-zinc-800/80 rounded-md animate-pulse" />
-                          <div className="h-2.5 w-1/2 bg-zinc-800/80 rounded-md animate-pulse" />
-                          <div className="h-2.5 w-5/6 bg-zinc-800/80 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-3/4 bg-zinc-200 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-1/2 bg-zinc-200 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-5/6 bg-zinc-200 rounded-md animate-pulse" />
                         </div>
                       )}
                     </div>
@@ -1583,11 +1586,20 @@ export function ContentStudioPage(props: {
                         value={editorScript}
                         onChange={(e) => setEditorScript(e.target.value)}
                         onBlur={(e) => setEditorScript(normalizeBullets(e.target.value))}
+                        disabled={generating}
                         className={`w-full h-72 bg-card border border-border rounded-xl p-5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-indigo-500 ${
                           generating ? 'ring-1 ring-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.05)]' : ''
                         }`}
                         placeholder="Core script explanation content body..."
                       />
+                      {generating && !editorScript && (
+                        <div className="absolute inset-0 bg-card border border-border rounded-xl p-5 flex flex-col gap-3 justify-center">
+                          <div className="h-2.5 w-4/5 bg-zinc-200 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-2/3 bg-zinc-200 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-3/4 bg-zinc-200 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-1/2 bg-zinc-200 rounded-md animate-pulse" />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1624,14 +1636,15 @@ export function ContentStudioPage(props: {
                         value={editorCta}
                         onChange={(e) => setEditorCta(e.target.value)}
                         onBlur={(e) => setEditorCta(normalizeBullets(e.target.value))}
+                        disabled={generating}
                         rows={3}
-                        className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-purple-500"
+                        className="w-full bg-card border border-border rounded-xl p-4.5 text-xs text-foreground font-sans leading-relaxed focus:outline-none focus:border-brand transition-all resize-none border-l-2 border-l-purple-500 disabled:opacity-85"
                         placeholder="CTA text variant content..."
                       />
                       {generating && !editorCta && (
                         <div className="absolute inset-0 bg-card border border-border rounded-xl p-4.5 flex flex-col gap-3 justify-center">
-                          <div className="h-2.5 w-3/4 bg-zinc-800/80 rounded-md animate-pulse" />
-                          <div className="h-2.5 w-1/2 bg-zinc-800/80 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-3/4 bg-zinc-200 rounded-md animate-pulse" />
+                          <div className="h-2.5 w-1/2 bg-zinc-200 rounded-md animate-pulse" />
                         </div>
                       )}
                     </div>

@@ -123,7 +123,9 @@ export async function POST(request: Request) {
 
             // Asynchronously trigger Promptfoo demo evaluation on success
             if (process.env.PROMPTFOO_RUNTIME_DEMO === 'true') {
+              console.log('[Promptfoo-Demo-Trigger] Enqueuing regression run via after() [Stream]');
               after(() => {
+                console.log('[Promptfoo-Demo-Trigger] Starting regression run inside after() [Stream]');
                 import('../../../../ai/evaluation/promptfoo/runner')
                   .then(({ runRegression }) => {
                     return runRegression({
@@ -133,6 +135,9 @@ export async function POST(request: Request) {
                       tenantId,
                       workspaceId
                     });
+                  })
+                  .then((res) => {
+                    console.log('[Promptfoo-Demo-Trigger] Regression run successfully completed. Passed:', res.summary?.passed);
                   })
                   .catch(err => {
                     console.error('[Promptfoo-Demo] Async runner failed:', err.message);
@@ -189,7 +194,9 @@ export async function POST(request: Request) {
 
     // Asynchronously trigger Promptfoo demo evaluation on success
     if (process.env.PROMPTFOO_RUNTIME_DEMO === 'true') {
+      console.log('[Promptfoo-Demo-Trigger] Enqueuing regression run via after() [Standard]');
       after(() => {
+        console.log('[Promptfoo-Demo-Trigger] Starting regression run inside after() [Standard]');
         import('../../../../ai/evaluation/promptfoo/runner')
           .then(({ runRegression }) => {
             return runRegression({
@@ -199,6 +206,9 @@ export async function POST(request: Request) {
               tenantId,
               workspaceId
             });
+          })
+          .then((res) => {
+            console.log('[Promptfoo-Demo-Trigger] Regression run successfully completed. Passed:', res.summary?.passed);
           })
           .catch(err => {
             console.error('[Promptfoo-Demo] Async runner failed:', err.message);

@@ -543,6 +543,7 @@ export class PromptfooProvider implements EvaluationProvider {
 
   public async execute(context: EvaluationContext, config?: EvaluationConfig): Promise<EvaluationResult> {
     const startTime = Date.now();
+    console.log('[Promptfoo-Provider] Starting execute() for dynamic assertion evaluation');
 
     try {
       const { runPromptfooEval } = await import('../promptfoo/adapter');
@@ -561,6 +562,7 @@ export class PromptfooProvider implements EvaluationProvider {
       );
 
       const assertions = match ? match.assert : datasetJson[0].assert;
+      console.log(`[Promptfoo-Provider] Matched assertions count: ${assertions?.length} (matched from dataset: ${!!match})`);
 
       const testCase = {
         vars: { title, topic, primaryGoal },
@@ -582,6 +584,7 @@ export class PromptfooProvider implements EvaluationProvider {
 
       const firstResult = pfResult.results?.[0];
       const overallScore = Math.round((firstResult?.gradingResult?.score !== undefined ? firstResult.gradingResult.score : (firstResult?.success ? 1.0 : 0.0)) * 100);
+      console.log(`[Promptfoo-Provider] runPromptfooEval completed. Success: ${firstResult?.success}, Score: ${overallScore}%`);
 
       const componentResults = firstResult?.gradingResult?.componentResults || [];
       const metrics = componentResults.length > 0 

@@ -23,6 +23,7 @@ export async function runRegression(options: RunnerOptions): Promise<{
     failed: number;
   };
 }> {
+  console.log(`[Promptfoo-Runner] Initializing runRegression. MockMode: ${options.mockMode}, Tenant: ${options.tenantId}, Workspace: ${options.workspaceId}`);
   const originalPost = apiClient.post;
   const originalResolve = providerRegistry.resolve;
 
@@ -103,7 +104,9 @@ export async function runRegression(options: RunnerOptions): Promise<{
   };
 
   try {
+    console.log(`[Promptfoo-Runner] Invoking runPromptfooEval with ${evaluateOptions.tests?.length} test cases`);
     const pfSummary = await runPromptfooEval(evaluateOptions);
+    console.log(`[Promptfoo-Runner] runPromptfooEval completed successfully. Results count: ${pfSummary.results?.length}`);
 
     const results = pfSummary.results.map((r: any) => {
       const overallScore = Math.round((r.gradingResult?.score || (r.success ? 1.0 : 0.0)) * 100);
@@ -210,11 +213,16 @@ export async function runRegression(options: RunnerOptions): Promise<{
     };
 
     // Save ONLY the sanitized regression run summary to the repository
+    console.log(`[Promptfoo-Runner] Attempting to save summaryResult (id: ${summaryResult.evaluationId}, provider: ${summaryResult.context.provider}, model: ${summaryResult.context.model}) to repository`);
     const { EvaluationRepositoryFactory } = await import('../storage/repositoryFactory');
     const repo = EvaluationRepositoryFactory.getRepository();
-    await repo.save(summaryResult).catch(err => {
-      console.warn(`[Promptfoo-Runner] Failed to persist evaluation record: ${err.message}`);
-    });
+    await repo.save(summaryResult)
+      .then(() => {
+        console.log(`[Promptfoo-Runner] Successfully saved summaryResult (id: ${summaryResult.evaluationId}) to repository`);
+      })
+      .catch(err => {
+        console.error(`[Promptfoo-Runner] Failed to persist summaryResult (id: ${summaryResult.evaluationId}) to repository:`, err.stack || err.message);
+      });
 
     return {
       results,

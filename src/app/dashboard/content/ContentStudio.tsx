@@ -1652,7 +1652,7 @@ export function ContentStudioPage(props: {
 
                 </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar bg-card rounded-2xl border border-border p-8 max-w-3xl mx-auto w-full">
+                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar glass-card rounded-2xl p-8 max-w-3xl mx-auto w-full">
                     <div className="space-y-2 text-center pb-6 border-b border-border">
                       <h1 className="text-2xl font-black text-foreground">{editorTitle || 'Untitled Project'}</h1>
                       <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground uppercase tracking-widest font-mono">

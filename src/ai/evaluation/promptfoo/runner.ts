@@ -143,8 +143,8 @@ export async function runRegression(options: RunnerOptions): Promise<{
           requestId: `req-pf-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
           creatorId: 'eval-system-user',
           stage: EvaluationStage.GENERATION,
-          provider: options.providerName,
-          model: options.modelName,
+          provider: 'Promptfoo',
+          model: options.modelName || 'regression-suite',
           metadata: {
             vars: r.vars,
             prompt: r.prompt?.raw,
@@ -187,8 +187,8 @@ export async function runRegression(options: RunnerOptions): Promise<{
         requestId: `req-${runId}`,
         creatorId: 'eval-system-user',
         stage: EvaluationStage.GENERATION,
-        provider: options.providerName,
-        model: options.modelName,
+        provider: 'Promptfoo',
+        model: options.modelName || 'regression-suite',
         metadata: {
           datasetVersion: "1.0.0",
           passCount: passed,

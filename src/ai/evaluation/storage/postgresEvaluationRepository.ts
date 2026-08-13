@@ -3,7 +3,13 @@ const { Pool } = pg;
 import { EvaluationRepository, EvaluationResult, EvaluationStatus, EvaluationStage } from '../types';
 
 export class InMemoryEvaluationRepository implements EvaluationRepository {
-  private records: Map<string, EvaluationResult> = new Map();
+  private get records(): Map<string, EvaluationResult> {
+    const g = global as any;
+    if (!g._evaluationRecords) {
+      g._evaluationRecords = new Map();
+    }
+    return g._evaluationRecords;
+  }
 
   public async save(result: EvaluationResult): Promise<void> {
     const context = result.context || {};

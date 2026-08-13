@@ -52,7 +52,7 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
       requestId: 'req-pf-test456',
       creatorId: 'eval-system-user',
       stage: EvaluationStage.GENERATION,
-      provider: 'mock',
+      provider: 'Promptfoo',
       model: 'mock-model',
       metadata: {
         datasetVersion: '1.0.0',
@@ -163,6 +163,7 @@ test('Evaluation Dashboard & API Boundary Test Suite', async (t) => {
     const pfRecord = list.find((item: any) => item.evaluationId === 'eval-pf-run-test456');
     assert.ok(pfRecord);
     assert.strictEqual(pfRecord.source, 'promptfoo');
+    assert.strictEqual(pfRecord.provider, 'Promptfoo');
     assert.strictEqual(pfRecord.overallScore, 100);
     assert.strictEqual(pfRecord.estimatedCost, 0.0);
 

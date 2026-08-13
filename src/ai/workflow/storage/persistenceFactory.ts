@@ -8,7 +8,13 @@ export class WorkflowPersistenceFactory {
   public static getStore(): WorkflowPersistenceStore {
     if (this.instance) return this.instance;
 
-    const dbUrl = process.env.DATABASE_URL || '';
+    const dbUrl = 
+      process.env.DATABASE_URL || 
+      process.env.DATABASE_URL_NEON || 
+      process.env.POSTGRES_URL || 
+      process.env.POSTGRES_PRISMA_URL || 
+      process.env.POSTGRES_URL_NON_POOLING || 
+      '';
     const usePostgres = featureFlags.POSTGRES_WORKFLOW_PERSISTENCE && featureFlags.DURABLE_WORKFLOWS;
 
     if (usePostgres && dbUrl) {

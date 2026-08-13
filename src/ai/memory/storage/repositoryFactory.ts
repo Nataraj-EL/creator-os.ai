@@ -9,7 +9,13 @@ export class MemoryRepositoryFactory {
 
   public static getRepository(): MemoryRepository {
     if (!this.instance) {
-      const dbUrl = process.env.DATABASE_URL || '';
+      const dbUrl = 
+        process.env.DATABASE_URL || 
+        process.env.DATABASE_URL_NEON || 
+        process.env.POSTGRES_URL || 
+        process.env.POSTGRES_PRISMA_URL || 
+        process.env.POSTGRES_URL_NON_POOLING || 
+        '';
       if (memoryFeatureFlags.VECTOR_MEMORY && dbUrl) {
         try {
           const provider = getEmbeddingProvider();

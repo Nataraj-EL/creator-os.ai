@@ -88,14 +88,6 @@ export async function GET() {
 
   return NextResponse.json({
     status: overallStatus,
-    components: status,
-    envCheck: {
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      hasDatabaseUrlNeon: !!process.env.DATABASE_URL_NEON,
-      hasPostgresUrl: !!process.env.POSTGRES_URL,
-      hasSpringDatasourceUrl: !!process.env.SPRING_DATASOURCE_URL,
-      hasPostgresUser: !!process.env.POSTGRES_USER,
-      hasPostgresHost: !!process.env.POSTGRES_HOST
-    }
+    components: status
   });
 }

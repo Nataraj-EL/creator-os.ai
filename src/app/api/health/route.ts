@@ -88,6 +88,7 @@ export async function GET() {
 
   return NextResponse.json({
     status: overallStatus,
-    components: status
+    components: status,
+    envKeys: Object.keys(process.env).filter(k => k.includes('DB') || k.includes('URL') || k.includes('POSTGRES'))
   });
 }

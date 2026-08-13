@@ -82,7 +82,6 @@ export async function GET() {
 
   return NextResponse.json({
     status: overallStatus,
-    components: status,
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'not-configured'
+    components: status
   });
 }

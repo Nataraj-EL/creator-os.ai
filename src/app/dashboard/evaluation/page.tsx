@@ -1545,7 +1545,7 @@ export default function DeveloperEvaluationConsole() {
 
                   {/* Raw Tab */}
                   {inspectTab === 'raw' && (
-                    <div className="bg-[#1e1e24] border border-border rounded-xl p-5 font-mono text-[10px] text-zinc-300 leading-relaxed overflow-x-auto max-h-96 shadow-inner custom-scrollbar">
+                    <div className="bg-muted/40 border border-border rounded-xl p-5 font-mono text-[10px] text-foreground leading-relaxed overflow-x-auto max-h-96 shadow-inner custom-scrollbar">
                       <pre className="whitespace-pre">
                         {(() => {
                           const formattedRecord = JSON.parse(JSON.stringify(selectedRecord));

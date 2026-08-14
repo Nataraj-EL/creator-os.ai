@@ -947,34 +947,42 @@ export default function DeveloperEvaluationConsole() {
         </div>
 
         {/* Cost & Token Usage */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-4">
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Usage & Cost Summary</h4>
+        <div className="glass-card rounded-2xl p-5 border border-border/40 space-y-4 shadow-[0_4px_20px_rgba(161,70,28,0.03)] hover:shadow-[0_4px_20px_rgba(161,70,28,0.06)] transition-all">
+          <h4 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Usage & Cost Summary</h4>
           <div className="space-y-3 text-xs">
             <div className="flex justify-between">
-              <span className="text-zinc-400">Total Tokens</span>
-              <span className="text-white font-mono font-bold">{totalTokens.toLocaleString()}</span>
+              <span className="text-zinc-500 font-medium">Total Tokens</span>
+              <span className="text-zinc-900 font-mono font-bold">
+                {totalTokens > 0 ? totalTokens.toLocaleString() : 'Not reported'}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-400">Estimated Cost</span>
-              <span className="text-cyan-400 font-mono font-bold">${totalCost.toFixed(4)}</span>
+              <span className="text-zinc-500 font-medium">Estimated Cost</span>
+              <span className="text-primary font-mono font-bold">
+                {totalCost > 0 ? `$${totalCost.toFixed(4)}` : 'Not reported'}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-400">Avg Cost / Run</span>
-              <span className="text-white font-mono font-bold">${(totalEvals ? totalCost / totalEvals : 0).toFixed(6)}</span>
+              <span className="text-zinc-500 font-medium">Avg Cost / Run</span>
+              <span className="text-zinc-900 font-mono font-bold">
+                {totalTokens > 0 && totalCost > 0 && totalEvals ? `$${(totalCost / totalEvals).toFixed(6)}` : 'Not reported'}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Provider/Model Comparison */}
-        <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
-          <h4 className="text-xs font-bold text-white uppercase tracking-wider">Model Quality Comparison</h4>
-          <div className="max-h-32 overflow-y-auto custom-scrollbar text-[11px] space-y-2">
+        <div className="glass-card rounded-2xl p-5 border border-border/40 space-y-3 shadow-[0_4px_20px_rgba(161,70,28,0.03)] hover:shadow-[0_4px_20px_rgba(161,70,28,0.06)] transition-all">
+          <h4 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Model Quality Comparison</h4>
+          <div className="max-h-32 overflow-y-auto custom-scrollbar text-[11px] space-y-2 pr-1">
             {modelComparisonList.map((m: any) => (
-              <div key={m.model} className="flex justify-between items-center border-b border-white/5 pb-1">
-                <span className="text-zinc-300 font-semibold truncate max-w-[140px]" title={m.model}>{m.model}</span>
-                <div className="flex gap-3 text-right">
-                  <span className="text-emerald-400 font-bold">{m.avgScore}% avg</span>
-                  <span className="text-zinc-500">{m.avgLatency}ms</span>
+              <div key={m.model} className="flex justify-between items-center border-b border-border/30 pb-1.5 pt-0.5">
+                <span className="text-zinc-700 font-bold flex-1 min-w-0 pr-2 truncate" title={m.model}>
+                  {m.model.replace('Backend-API - ', '')}
+                </span>
+                <div className="flex gap-3 text-right flex-shrink-0">
+                  <span className="text-emerald-600 font-extrabold">{m.avgScore}% avg</span>
+                  <span className="text-zinc-500 font-mono">{m.avgLatency}ms</span>
                 </div>
               </div>
             ))}
@@ -1235,27 +1243,27 @@ export default function DeveloperEvaluationConsole() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="col-span-1 lg:col-span-5 bg-zinc-950 border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative"
+              className="col-span-1 lg:col-span-5 bg-card border border-border/80 rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(161,70,28,0.08)] relative"
             >
               {/* Drawer Header */}
-              <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
+              <div className="p-5 border-b border-border/50 flex justify-between items-center bg-muted/20">
                 <div>
-                  <h3 className="font-extrabold text-white text-base">Trace Inspector</h3>
-                  <p className="text-[10px] text-zinc-400 mt-0.5">Audit runs pipeline debugger</p>
+                  <h3 className="font-extrabold text-foreground text-base">Trace Inspector</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Audit runs pipeline debugger</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleExportJSON(selectedRecord)}
-                    className="p-2 hover:bg-white/5 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                    className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground hover:scale-105 active:scale-95 rounded-full border border-border bg-card/60 transition-all cursor-pointer flex items-center justify-center w-8 h-8 shadow-sm flex-shrink-0"
                     title="Export JSON record"
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => setSelectedRecord(null)}
-                    className="p-2 hover:bg-white/5 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                    className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground hover:scale-105 active:scale-95 rounded-full border border-border bg-card/60 transition-all cursor-pointer flex items-center justify-center w-8 h-8 shadow-sm flex-shrink-0"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -1288,39 +1296,39 @@ export default function DeveloperEvaluationConsole() {
                     <span>Evaluation Event Timeline</span>
                   </h4>
                   
-                  <div className="border-l border-white/10 ml-2.5 pl-5 space-y-4 text-xs">
+                  <div className="border-l-2 border-border/40 ml-3 pl-6 space-y-6 text-xs relative">
                     
                     {/* Started */}
                     <div className="relative">
-                      <div className="absolute -left-[26px] top-0.5 p-0.5 bg-zinc-950 rounded-full border border-emerald-500/50 text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <div className="absolute -left-[33px] top-0.5 p-1 bg-card rounded-full border-2 border-emerald-500 text-emerald-500 shadow-sm shadow-emerald-500/10">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
                       </div>
-                      <span className="font-semibold text-white">Evaluation Started</span>
-                      <p className="text-[10px] text-zinc-500">Flags checked; context loaded.</p>
+                      <span className="font-bold text-foreground">Evaluation Started</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Flags checked; context loaded.</p>
                     </div>
 
                     {/* Provider Selected */}
                     <div className="relative">
-                      <div className="absolute -left-[26px] top-0.5 p-0.5 bg-zinc-950 rounded-full border border-emerald-500/50 text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <div className="absolute -left-[33px] top-0.5 p-1 bg-card rounded-full border-2 border-emerald-500 text-emerald-500 shadow-sm shadow-emerald-500/10">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
                       </div>
-                      <span className="font-semibold text-white">Provider Selected</span>
-                      <p className="text-[10px] text-zinc-500">Resolved to {selectedRecord.context?.provider || 'Unknown'}.</p>
+                      <span className="font-bold text-foreground">Provider Selected</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Resolved to {selectedRecord.context?.provider || 'Unknown'}.</p>
                     </div>
 
                     {/* Request Sent */}
                     <div className="relative">
-                      <div className={`absolute -left-[26px] top-0.5 p-0.5 bg-zinc-950 rounded-full border ${
+                      <div className={`absolute -left-[33px] top-0.5 p-1 bg-card rounded-full border-2 shadow-sm ${
                         selectedRecord.status === EvaluationStatus.SKIPPED 
-                          ? 'border-zinc-500 text-zinc-500' 
-                          : 'border-emerald-500/50 text-emerald-400'
+                          ? 'border-muted text-muted-foreground' 
+                          : 'border-emerald-500 text-emerald-500 shadow-emerald-500/10'
                       }`}>
-                        <CheckCircle2 className="h-3 w-3" />
+                        <CheckCircle2 className="h-2.5 w-2.5" />
                       </div>
-                      <span className={`font-semibold ${selectedRecord.status === EvaluationStatus.SKIPPED ? 'text-zinc-500' : 'text-white'}`}>
+                      <span className={`font-bold ${selectedRecord.status === EvaluationStatus.SKIPPED ? 'text-muted-foreground' : 'text-foreground'}`}>
                         Request Dispatched
                       </span>
-                      <p className="text-[10px] text-zinc-500">
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
                         {selectedRecord.status === EvaluationStatus.SKIPPED ? 'Skipped pipeline processing.' : `Endpoint target model: ${selectedRecord.context?.model || 'Unknown'}.`}
                       </p>
                     </div>
@@ -1328,21 +1336,21 @@ export default function DeveloperEvaluationConsole() {
                     {/* Response Received & Validated */}
                     {selectedRecord.status !== EvaluationStatus.SKIPPED && (
                       <div className="relative">
-                        <div className={`absolute -left-[26px] top-0.5 p-0.5 bg-zinc-950 rounded-full border ${
+                        <div className={`absolute -left-[33px] top-0.5 p-1 bg-card rounded-full border-2 shadow-sm ${
                           selectedRecord.status === EvaluationStatus.FAILED 
-                            ? 'border-red-500 text-red-400' 
-                            : 'border-emerald-500/50 text-emerald-400'
+                            ? 'border-red-500 text-red-500 shadow-red-500/10' 
+                            : 'border-emerald-500 text-emerald-500 shadow-emerald-500/10'
                         }`}>
                           {selectedRecord.status === EvaluationStatus.FAILED ? (
-                            <AlertCircle className="h-3 w-3" />
+                            <AlertCircle className="h-2.5 w-2.5" />
                           ) : (
-                            <CheckCircle2 className="h-3 w-3" />
+                            <CheckCircle2 className="h-2.5 w-2.5" />
                           )}
                         </div>
-                        <span className={`font-semibold ${selectedRecord.status === EvaluationStatus.FAILED ? 'text-red-400' : 'text-white'}`}>
+                        <span className={`font-bold ${selectedRecord.status === EvaluationStatus.FAILED ? 'text-red-500' : 'text-foreground'}`}>
                           {selectedRecord.status === EvaluationStatus.FAILED ? 'Response Audit Failed' : 'Response Validated'}
                         </span>
-                        <p className="text-[10px] text-zinc-500">
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
                           {selectedRecord.status === EvaluationStatus.FAILED 
                             ? 'Error parsing downstream model response.' 
                             : 'Zod structural criteria validation: PASS.'}
@@ -1352,11 +1360,11 @@ export default function DeveloperEvaluationConsole() {
 
                     {/* Persisted */}
                     <div className="relative">
-                      <div className="absolute -left-[26px] top-0.5 p-0.5 bg-zinc-950 rounded-full border border-emerald-500/50 text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3" />
+                      <div className="absolute -left-[33px] top-0.5 p-1 bg-card rounded-full border-2 border-emerald-500 text-emerald-500 shadow-sm shadow-emerald-500/10">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
                       </div>
-                      <span className="font-semibold text-white">Trace Stored</span>
-                      <p className="text-[10px] text-zinc-500">Result cached to Repository.</p>
+                      <span className="font-bold text-foreground">Trace Stored</span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Result cached to Repository.</p>
                     </div>
 
                   </div>
@@ -1442,7 +1450,11 @@ export default function DeveloperEvaluationConsole() {
                               </div>
                               <div>
                                 <span className="text-zinc-500">Estimated Cost</span>
-                                <p className="text-cyan-400 font-bold">${selectedRecord.context?.metadata?.estimatedCost?.toFixed(4) || '0.0000'}</p>
+                                <p className="text-primary font-bold">
+                                  {selectedRecord.context?.metadata?.estimatedCost && selectedRecord.context.metadata.estimatedCost > 0
+                                    ? `$${selectedRecord.context.metadata.estimatedCost.toFixed(4)}`
+                                    : 'Not reported'}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -1533,8 +1545,21 @@ export default function DeveloperEvaluationConsole() {
 
                   {/* Raw Tab */}
                   {inspectTab === 'raw' && (
-                    <div className="bg-black/30 border border-white/5 rounded-xl p-4 font-mono text-[10px] text-zinc-400 leading-relaxed overflow-x-auto max-h-96 custom-scrollbar">
-                      <pre className="whitespace-pre">{JSON.stringify(selectedRecord, null, 2)}</pre>
+                    <div className="bg-[#1e1e24] border border-border rounded-xl p-5 font-mono text-[10px] text-zinc-300 leading-relaxed overflow-x-auto max-h-96 shadow-inner custom-scrollbar">
+                      <pre className="whitespace-pre">
+                        {(() => {
+                          const formattedRecord = JSON.parse(JSON.stringify(selectedRecord));
+                          if (
+                            formattedRecord.tokenUsage &&
+                            formattedRecord.tokenUsage.prompt === 0 &&
+                            formattedRecord.tokenUsage.total === 0
+                          ) {
+                            formattedRecord.tokenUsage = "Not reported by model provider";
+                            formattedRecord.estimatedCost = "Not reported by model provider";
+                          }
+                          return JSON.stringify(formattedRecord, null, 2);
+                        })()}
+                      </pre>
                     </div>
                   )}
 
@@ -1545,7 +1570,7 @@ export default function DeveloperEvaluationConsole() {
                       {/* Timeline component latency breakdown */}
                       <div className="space-y-3">
                         <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Component Latency Breakdown</span>
-                        <div className="bg-white/[0.01] border border-white/5 rounded-xl p-4 space-y-3 text-xs">
+                        <div className="bg-muted/10 border border-border rounded-xl p-4 space-y-3 text-xs">
                           {activeTrace.events
                             .filter((e: any) => e.status === 'completed' || e.status === 'failed')
                             .map((evt: any) => {
@@ -1554,14 +1579,16 @@ export default function DeveloperEvaluationConsole() {
                                 : 0;
                               return (
                                 <div key={evt.eventId} className="space-y-1">
-                                  <div className="flex justify-between text-[11px]">
-                                    <span className="font-semibold text-zinc-300">{evt.component} ({evt.stage})</span>
-                                    <span className="font-mono text-zinc-400">{evt.latencyMs ?? 0}ms</span>
+                                  <div className="flex justify-between text-[11px] pb-0.5">
+                                    <span className="font-semibold text-zinc-700">{evt.component} ({evt.stage})</span>
+                                    <span className="font-mono text-zinc-500 font-bold">{evt.latencyMs ?? 0}ms</span>
                                   </div>
-                                  <div className="w-full bg-white/[0.04] rounded-full h-1.5 overflow-hidden">
+                                  <div className="w-full bg-border/40 rounded-full h-2 overflow-hidden shadow-inner">
                                     <div 
-                                      className={`h-full rounded-full ${
-                                        evt.status === 'failed' ? 'bg-red-500' : 'bg-cyan-500'
+                                      className={`h-full rounded-full transition-all duration-500 ${
+                                        evt.status === 'failed' 
+                                          ? 'bg-gradient-to-r from-red-500 to-rose-600' 
+                                          : 'bg-gradient-to-r from-[#d3cbbd] to-primary'
                                       }`}
                                       style={{ width: `${pct}%` }}
                                     />
@@ -1669,12 +1696,44 @@ export default function DeveloperEvaluationConsole() {
       {consoleTab === 'experiments' && (
         <div className="space-y-8">
           {experimentsAnalytics.length === 0 ? (
-            <div className="text-center py-20 bg-white/[0.01] border border-white/5 rounded-2xl">
-              <Sparkles className="h-10 w-10 text-zinc-600 mx-auto mb-4 animate-pulse" />
-              <h3 className="text-base font-bold text-white">No Experiments Configured</h3>
-              <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-2 leading-relaxed">
-                Active prompt template experiments and variant performance assignments will compile here once registered in the runtime.
-              </p>
+            <div className="max-w-2xl mx-auto text-center py-12 px-6 glass-card border border-border rounded-2xl space-y-6 shadow-[0_4px_20px_rgba(161,70,28,0.03)]">
+              <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mx-auto shadow-sm">
+                <Sparkles className="h-6 w-6 animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-extrabold text-foreground">A/B Experiments Console</h3>
+                <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                  Compare prompt variations, system instructions, and different LLM models side-by-side. 
+                  Measure latency, accuracy, cost, and alignment in real-time.
+                </p>
+              </div>
+
+              {/* Blueprint Visual Representation of Variants (Unconfigured State) */}
+              <div className="grid grid-cols-2 gap-4 text-left border border-border/60 bg-muted/20 p-4 rounded-xl max-w-md mx-auto font-mono text-[10px] text-muted-foreground">
+                <div className="border border-dashed border-border p-3 rounded-lg bg-card/50 flex flex-col justify-between h-20">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-zinc-500">Variant A (Control)</span>
+                    <span className="px-1.5 py-0.5 rounded bg-zinc-200/60 text-[9px]">50% traffic</span>
+                  </div>
+                  <div className="h-2 w-24 bg-zinc-200 rounded-full" />
+                  <span className="text-[9px]">Status: Pending assignment</span>
+                </div>
+                <div className="border border-dashed border-border p-3 rounded-lg bg-card/50 flex flex-col justify-between h-20">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-zinc-500">Variant B (Active)</span>
+                    <span className="px-1.5 py-0.5 rounded bg-zinc-200/60 text-[9px]">50% traffic</span>
+                  </div>
+                  <div className="h-2 w-16 bg-zinc-200 rounded-full" />
+                  <span className="text-[9px]">Status: Pending assignment</span>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <span className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-bold cursor-pointer">
+                  <span>Learn how to configure A/B prompt routing</span>
+                  <ChevronRight className="h-3 w-3" />
+                </span>
+              </div>
             </div>
           ) : (
             experimentsAnalytics.map((exp: any) => (

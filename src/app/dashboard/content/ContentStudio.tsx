@@ -1059,7 +1059,7 @@ export function ContentStudioPage(props: {
         <div className="lg:col-span-4 flex flex-col h-auto lg:h-full overflow-hidden">
           
           {/* Project List Sidebar Panel */}
-          <div className="glass-card rounded-2xl border border-border flex flex-col flex-1 overflow-hidden bg-card/10">
+          <div className="glass-card rounded-2xl border border-border flex flex-col flex-1 overflow-hidden bg-card/10 shadow-[0_4px_24px_rgba(161,70,28,0.02)]">
             
             {/* Header + Search/Filters */}
             <div className="p-4 border-b border-border space-y-3 flex-shrink-0">
@@ -1321,7 +1321,7 @@ export function ContentStudioPage(props: {
               >
                 
                 {/* TOP ACTION BAR */}
-                <div className="glass-card rounded-2xl border border-white/5 p-4 flex flex-col md:flex-row justify-between items-center gap-3 bg-card/10 flex-shrink-0">
+                <div className="glass-card rounded-2xl border border-border p-4 flex flex-col md:flex-row justify-between items-center gap-3 bg-card/10 flex-shrink-0 shadow-[0_4px_24px_rgba(161,70,28,0.02)]">
                   <div className="flex items-center gap-3 w-full md:w-auto">
                     <FileText className="h-5 w-5 text-indigo-400 flex-shrink-0" />
                     <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1356,19 +1356,23 @@ export function ContentStudioPage(props: {
                           </span>
                         </div>
                       </div>
-                      <div className="flex bg-[#0a0a0c]/60 border border-white/5 rounded-lg p-0.5 flex-shrink-0 self-start sm:self-center">
+                      <div className="flex bg-muted/60 border border-border rounded-lg p-0.5 flex-shrink-0 self-start sm:self-center">
                         <button
                           onClick={() => setEditorTab('edit')}
-                          className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                            editorTab === 'edit' ? 'bg-cyan-500 text-white' : 'text-zinc-500 hover:text-white'
+                          className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                            editorTab === 'edit'
+                              ? 'bg-card text-primary shadow-[0_2px_8px_rgba(161,70,28,0.08)] border border-border/30 font-extrabold'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setEditorTab('preview')}
-                          className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                            editorTab === 'preview' ? 'bg-cyan-500 text-white' : 'text-zinc-500 hover:text-white'
+                          className={`px-3 py-1.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                            editorTab === 'preview'
+                              ? 'bg-card text-primary shadow-[0_2px_8px_rgba(161,70,28,0.08)] border border-border/30 font-extrabold'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Preview
@@ -1652,7 +1656,7 @@ export function ContentStudioPage(props: {
 
                 </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar glass-card rounded-2xl p-8 max-w-3xl mx-auto w-full">
+                  <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar glass-card rounded-2xl p-8 max-w-3xl mx-auto w-full shadow-[0_8px_32px_rgba(161,70,28,0.04)]">
                     <div className="space-y-2 text-center pb-6 border-b border-border">
                       <h1 className="text-2xl font-black text-foreground">{editorTitle || 'Untitled Project'}</h1>
                       <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground uppercase tracking-widest font-mono">

@@ -13,35 +13,9 @@ export default function ClickBurstProvider({ children }: { children: React.React
   const [effects, setEffects] = useState<ClickEffect[]>([]);
 
   useEffect(() => {
-    let lastTriggerTime = 0;
-    let lastX = 0;
-    let lastY = 0;
-
-    const handlePointerOrClick = (e: MouseEvent | PointerEvent | TouchEvent) => {
-      let clientX = 0;
-      let clientY = 0;
-      let target: HTMLElement | null = null;
-
-      if ("touches" in e && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-        target = e.touches[0].target as HTMLElement | null;
-      } else if ("clientX" in e) {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
-        target = (e as MouseEvent).target as HTMLElement | null;
-      }
-
-      if (!target || (clientX === 0 && clientY === 0)) return;
-
-      // Ignore rapid duplicate events (e.g. touchstart followed by pointerdown/click at same spot)
-      const now = Date.now();
-      if (now - lastTriggerTime < 100 && Math.hypot(clientX - lastX, clientY - lastY) < 20) {
-        return;
-      }
-      lastTriggerTime = now;
-      lastX = clientX;
-      lastY = clientY;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
 
       // Filter out typing inputs/controls to keep form typing clear
       const tag = target.tagName ? target.tagName.toLowerCase() : "";
@@ -79,11 +53,11 @@ export default function ClickBurstProvider({ children }: { children: React.React
         el = el.parentElement;
       }
 
-      const newEffect: ClickEffect = {
+      const newEffect = {
         id: Date.now() + Math.random(),
-        x: clientX,
-        y: clientY,
-        color: isDarkBackground ? "white" : "black",
+        x: e.clientX,
+        y: e.clientY,
+        color: (isDarkBackground ? "white" : "black") as "black" | "white",
       };
 
       setEffects((prev) => [...prev, newEffect]);
@@ -94,12 +68,9 @@ export default function ClickBurstProvider({ children }: { children: React.React
       }, 500);
     };
 
-    window.addEventListener("pointerdown", handlePointerOrClick as EventListener, { capture: true });
-    window.addEventListener("click", handlePointerOrClick as EventListener, { capture: true });
-
+    window.addEventListener("click", handleClick, { capture: true });
     return () => {
-      window.removeEventListener("pointerdown", handlePointerOrClick as EventListener, { capture: true });
-      window.removeEventListener("click", handlePointerOrClick as EventListener, { capture: true });
+      window.removeEventListener("click", handleClick, { capture: true });
     };
   }, []);
 
